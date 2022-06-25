@@ -1,3 +1,7 @@
+## 1.0.2
+
+* Documentation still missing from pub.dev -.-
+
 ## 1.0.1
 
 * Fixed version to a more serios version
