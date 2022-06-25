@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="generator" content="made with love by dartdoc 5.1.0-dev">
+  <meta name="description" content="win32audio API docs, for the Dart programming language.">
+  <title>win32audio - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+
+  
+</head>
+
+
+<body data-base-href=""
+      data-using-base-href="false">
+
+<div id="overlay-under-drawer"></div>
+
+<header id="title">
+  <button id="sidenav-left-toggle" type="button">&nbsp;</button>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li class="self-crumb">win32audio package</li>
+  </ol>
+  <div class="self-name">win32audio</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+
+<main>
+
+
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="win32audio">win32audio</h1>
+<p>A library to get Audio Devices on Windows.</p>
+<p>Also you can get volume and set Master volume or individual application volume</p>
+<p>Also includes a utilitary function <code>nativeIconToBytes</code> that can be used for other purposes rather than audio device.</p>
+<p><img src="https://user-images.githubusercontent.com/20853986/175772236-0158ca3b-7dd0-41d4-b10e-7304f3be0b71.png" alt="image"></p>
+<h1 id="how-to-use">How to use</h1>
+<h2 id="enumerate-devices">Enumerate Devices</h2>
+<h4 id="audio-devices">Audio Devices</h4>
+<pre class="language-dart"><code class="language-dart">  var audioDevices = &lt;AudioDevice&gt;[];
+
+    audioDevices = await Audio.enumDevices(audioDeviceType) ?? [];
+</code></pre>
+<h4 id="audio-mixer">Audio Mixer</h4>
+<pre class="language-dart"><code class="language-dart">  var mixerList = &lt;ProcessVolume&gt;[];
+
+  mixerList = await Audio.enumAudioMixer() ?? [];
+</code></pre>
+<h2 id="default-device">Default Device</h2>
+<h4 id="get">Get</h4>
+<pre class="language-dart"><code class="language-dart">  var defaultDevice = AudioDevice();
+  
+  defaultDevice = (await Audio.getDefaultDevice(audioDeviceType))!;
+</code></pre>
+<h4 id="set">Set</h4>
+<p><code>id</code> is COM string</p>
+<pre class="language-dart"><code class="language-dart">await Audio.setDefaultDevice(audioDevices[0].id);
+</code></pre>
+<h4 id="switch-to-next-audio-device">Switch to next Audio Device</h4>
+<pre class="language-dart"><code class="language-dart">    await Audio.switchDefaultDevice(audioDeviceType);
+</code></pre>
+<h2 id="volume">Volume</h2>
+<p>Volume is double between 0 and 1.</p>
+<h4 id="get-2">Get</h4>
+<pre class="language-dart"><code class="language-dart">    final volume = await Audio.getVolume(audioDeviceType);
+</code></pre>
+<h4 id="set-2">Set</h4>
+<pre class="language-dart"><code class="language-dart">    final volume = await Audio.setVolume(0.5,audioDeviceType);
+</code></pre>
+<h4 id="set-specific-app-volume">Set Specific app volume:</h4>
+<pre class="language-dart"><code class="language-dart">    await Audio.setAudioMixerVolume(mixerList[0].processId, 0.3);
+</code></pre>
+<h2 id="structsenums">Structs/Enums</h2>
+<pre class="language-dart"><code class="language-dart">class AudioDevice {
+  String id = "";
+  String name = "";
+  String iconPath = "";
+  int iconID = 0;
+  bool isActive = false;
+}
+
+class ProcessVolume {
+  int processId = 0;
+  String processPath = "";
+  double maxVolume = 1.0;
+  double peakVolume = 0.0;
+}
+
+enum AudioDeviceType {
+  output,
+  input,
+}
+</code></pre>
+<h1 id="extra-function">Extra Function</h1>
+<p><code>nativeIconToBytes</code> extracts icon either from EXE file or dll file and store it as UInt8List</p>
+<pre class="language-dart"><code class="language-dart">
+    Map&lt;String, Uint8List?&gt; _audioIcons = {};
+    _audioIcons = {};
+    for (var audioDevice in audioDevices) {
+      if (_audioIcons[audioDevice.id] == null) {
+        _audioIcons[audioDevice.id] = await nativeIconToBytes(audioDevice.iconPath, iconID: audioDevice.iconID);
+      }
+    }
+///....
+widget: (_audioIcons.containsKey(audioDevices[index].id))
+                            ? Image.memory(
+                                _audioIcons[audioDevices[index].id] ?? Uint8List(0),
+                                width: 32,
+                                height: 32,
+                              )
+                            : const Icon(Icons.spoke_outlined),
+</code></pre>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="win32audio">
+  <span class="name"><a href="win32audio/win32audio-library.html">win32audio</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+        </dl>
+      </section>
+
+  </div> <!-- /.main-content -->
+
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+  <li class="self-crumb">win32audio package</li>
+</ol>
+
+
+    <h5 class="hidden-xs"><span class="package-name">win32audio</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="win32audio/win32audio-library.html">win32audio</a></li>
+</ol>
+
+  </div>
+
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+
+</main>
+
+<footer>
+  <span class="no-break">
+    win32audio
+      0.0.1
+  </span>
+
+  
+</footer>
+
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/script.js?v1"></script>
+
+
+
+</body>
+
+</html>
+

@@ -1,7 +1,7 @@
 name: win32audio
-description: A new Flutter plugin project.
-version: 0.0.1
-homepage:
+description: A Windows plugin that fetches audio devices, sets default device, sets Master Volume and specific app volume and gets native icon
+version: 1.0.1
+homepage: https://github.com/Far-Se/win32audio
 
 environment:
   sdk: ">=2.17.5 <3.0.0"

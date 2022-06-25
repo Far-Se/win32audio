@@ -1,3 +1,9 @@
+## 1.0.1
+
+* Fixed version to a more serios version
+* Generated Documentation
+
 ## 0.0.1
 
-* TODO: Describe initial release.
+* Initial Release with the main functionality of the package.
+
