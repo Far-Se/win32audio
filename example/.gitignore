@@ -52,3 +52,5 @@ app.*.map.json
 build/
 .history/
 .vscode/
+
+.pubspec.lock
