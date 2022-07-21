@@ -547,15 +547,97 @@ namespace win32audio
             std::string iconLocation = std::get<std::string>(args.at(flutter::EncodableValue("iconLocation")));
             int iconID = std::get<int>(args.at(flutter::EncodableValue("iconID")));
             std::wstring iconLocationW = Encoding::Utf8ToWide(iconLocation);
-            BYTE buffer[(33 * 33) * 4];
             HICON icon = getIconFromFile((LPWSTR)iconLocationW.c_str(), iconID);
-            convertIconToBytes(icon, buffer);
-            std::vector<uint8_t> iconBytes;
-            for (int i = 0; i < (33 * 33) * 4; i++)
+
+            std::vector<CHAR> buff;
+            bool resultIcon = GetIconData(icon, 32, buff);
+            if (!resultIcon)
             {
-                iconBytes.push_back(buffer[i]);
+                buff.clear();
+                resultIcon = GetIconData(icon, 24, buff);
             }
-            result->Success(flutter::EncodableValue(iconBytes));
+            std::vector<uint8_t> buff_uint8;
+            for (auto i : buff)
+            {
+                buff_uint8.push_back(i);
+            }
+            result->Success(flutter::EncodableValue(buff_uint8));
+        }
+        else if (method_call.method_name().compare("getWindowIcon") == 0)
+        {
+            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+            int hWND = std::get<int>(args.at(flutter::EncodableValue("hWnd")));
+
+            LRESULT iconResult = SendMessage((HWND)((LONG_PTR)hWND), WM_GETICON, 2, 0); // ICON_SMALL2 - User Made Apps
+            if (iconResult == 0)
+                iconResult = GetClassLongPtr((HWND)((LONG_PTR)hWND), -14); // GCLP_HICON - Microsoft Win Apps
+            if (iconResult != 0)
+            {
+
+                HICON icon = (HICON)iconResult;
+                std::vector<CHAR> buff;
+                bool resultIcon = GetIconData(icon, 32, buff);
+                if (!resultIcon)
+                {
+                    buff.clear();
+                    resultIcon = GetIconData(icon, 24, buff);
+                }
+                if (resultIcon)
+                {
+                    std::vector<uint8_t> buff_uint8;
+                    for (auto i : buff)
+                    {
+                        buff_uint8.push_back(i);
+                    }
+                    result->Success(flutter::EncodableValue(buff_uint8));
+                }
+                else
+                {
+                    std::vector<uint8_t> iconBytes;
+                    iconBytes.push_back(204);
+                    iconBytes.push_back(204);
+                    iconBytes.push_back(204);
+                    result->Success(flutter::EncodableValue(iconBytes));
+                }
+            }
+            else
+            {
+
+                std::vector<uint8_t> iconBytes;
+                iconBytes.push_back(204);
+                iconBytes.push_back(204);
+                iconBytes.push_back(204);
+                result->Success(flutter::EncodableValue(iconBytes));
+            }
+        }
+        else if (method_call.method_name().compare("getIconPng") == 0)
+        {
+            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+            int hIcon = std::get<int>(args.at(flutter::EncodableValue("hIcon")));
+            std::vector<CHAR> buff;
+            bool resultIcon = GetIconData((HICON)((LONG_PTR)hIcon), 32, buff);
+            if (!resultIcon)
+            {
+                buff.clear();
+                resultIcon = GetIconData((HICON)((LONG_PTR)hIcon), 24, buff);
+            }
+            if (resultIcon)
+            {
+                std::vector<uint8_t> buff_uint8;
+                for (auto i : buff)
+                {
+                    buff_uint8.push_back(i);
+                }
+                result->Success(flutter::EncodableValue(buff_uint8));
+            }
+            else
+            {
+                std::vector<uint8_t> iconBytes;
+                iconBytes.push_back(204);
+                iconBytes.push_back(204);
+                iconBytes.push_back(204);
+                result->Success(flutter::EncodableValue(iconBytes));
+            }
         }
         else if (method_call.method_name().compare("enumAudioMixer") == 0)
         {

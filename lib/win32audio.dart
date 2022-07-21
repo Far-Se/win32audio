@@ -80,6 +80,8 @@ const audioMethodChannel = MethodChannel('win32audio');
 
 class Audio {
   /// Returns a Future list of audio devices of a specified type.
+  /// The type is specified by the [AudioDeviceType] enum.
+  ///
   static Future<List<AudioDevice>?> enumDevices(AudioDeviceType audioDeviceType) async {
     final Map<String, dynamic> arguments = {'deviceType': audioDeviceType.index};
     final Map<dynamic, dynamic> map = await audioMethodChannel.invokeMethod('enumAudioDevices', arguments);
@@ -97,7 +99,9 @@ class Audio {
     return audioDevices;
   }
 
-  //Returns a Future containing the default audio device of the given type.
+  /// Returns a Future containing the default audio device of the given type.
+  /// The type is specified by the [AudioDeviceType] enum.
+  ///
   static Future<AudioDevice?> getDefaultDevice(AudioDeviceType audioDeviceType) async {
     final Map<String, dynamic> arguments = {'deviceType': audioDeviceType.index};
     final Map<dynamic, dynamic> map = await audioMethodChannel.invokeMethod('getDefaultDevice', arguments);
@@ -112,6 +116,7 @@ class Audio {
   }
 
   /// Sets the default audio device.
+  /// The type is specified by the [AudioDeviceType] enum.
   static Future<int> setDefaultDevice(String deviceID) async {
     final Map<String, dynamic> arguments = {'deviceID': deviceID};
     final result = await audioMethodChannel.invokeMethod<int>('setDefaultAudioDevice', arguments);
@@ -119,6 +124,7 @@ class Audio {
   }
 
   /// Returns the current volume for the given audio device type.
+  /// The type is specified by the [AudioDeviceType] enum.
   static Future<double> getVolume(AudioDeviceType audioDeviceType) async {
     final Map<String, dynamic> arguments = {'deviceType': audioDeviceType.index};
     final result = await audioMethodChannel.invokeMethod<double>('getAudioVolume', arguments);
@@ -126,6 +132,8 @@ class Audio {
   }
 
   /// This function sets the volume of the specified audio device type. The volume level is a number between 0 and 1, with 1 being the maximum volume.
+  /// The type is specified by the [AudioDeviceType] enum.
+  ///
   static Future<int> setVolume(double volume, AudioDeviceType audioDeviceType) async {
     if (volume > 1) volume = (volume / 100).toDouble();
     final Map<String, dynamic> arguments = {'deviceType': audioDeviceType.index, 'volumeLevel': volume};
@@ -133,7 +141,7 @@ class Audio {
     return result as int;
   }
 
-  /// This function switches the audio device to the specified type.
+  /// This function switches the audio device to the specified type. The type is specified by the [AudioDeviceType] enum.
   static Future<double> switchDefaultDevice(AudioDeviceType audioDeviceType) async {
     final Map<String, dynamic> arguments = {'deviceType': audioDeviceType.index};
     final result = await audioMethodChannel.invokeMethod<double>('switchDefaultDevice', arguments);
@@ -156,6 +164,8 @@ class Audio {
   }
 
   /// This function sets the audio mixer volume for the specified process ID. The volume level is a number between 0 and 1, with 1 being the maximum volume.
+  /// The process ID is the process ID of the process that is using the audio mixer.
+  /// The process ID can be obtained by calling the enumAudioMixer function.
   static Future<bool> setAudioMixerVolume(int processID, double volume) async {
     if (volume > 1) volume = (volume / 100).toDouble();
     final Map<String, dynamic> arguments = {'processID': processID, 'volumeLevel': volume};
@@ -165,8 +175,40 @@ class Audio {
 }
 
 /// This function converts a native icon location to bytes.
+/// The icon location is the path to the icon file.
+/// The icon ID is the icon ID of the icon file.
+/// The icon ID can be obtained by calling the enumAudioDevices function.
 Future<Uint8List?> nativeIconToBytes(String iconlocation, {int iconID = 0}) async {
   final Map<String, dynamic> arguments = {'iconLocation': iconlocation, 'iconID': iconID};
   final result = await audioMethodChannel.invokeMethod<Uint8List>('iconToBytes', arguments);
   return result;
+}
+
+/// A utilitary class that handles Win Icons.
+class WinIcons {
+  /// This function extracts an icon from any file.
+
+  Future<Uint8List?> extractFileIcon(String iconlocation, {int iconID = 0}) async {
+    final Map<String, dynamic> arguments = {'iconLocation': iconlocation, 'iconID': iconID};
+    final result = await audioMethodChannel.invokeMethod<Uint8List>('iconToBytes', arguments);
+    return result;
+  }
+
+  Future<Uint8List?> extractExecutableIcon(String iconlocation, {int iconID = 0}) async {
+    return await extractFileIcon(iconlocation, iconID: iconID);
+  }
+
+  /// This function extracts an icon from a HWND / Window Handle
+  Future<Uint8List?> extractWindowIcon(int hWnd) async {
+    final Map<String, dynamic> arguments = <String, dynamic>{'hWnd': hWnd};
+    final Uint8List? result = await audioMethodChannel.invokeMethod<Uint8List>('getWindowIcon', arguments);
+    return result;
+  }
+
+  /// This function extracts an icon from a HICON / IconHandle
+  Future<Uint8List?> extractIconHandle(int hIcon) async {
+    final Map<String, dynamic> arguments = <String, dynamic>{'hIcon': hIcon};
+    final Uint8List? result = await audioMethodChannel.invokeMethod<Uint8List>('getIconPng', arguments);
+    return result;
+  }
 }

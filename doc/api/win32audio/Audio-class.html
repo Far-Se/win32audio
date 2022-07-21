@@ -178,6 +178,7 @@
 </dt>
 <dd>
   Returns a Future list of audio devices of a specified type.
+The type is specified by the <a href="../win32audio/AudioDeviceType.html">AudioDeviceType</a> enum.
   
 
 </dd>
@@ -190,7 +191,8 @@
 
 </dt>
 <dd>
-  
+  Returns a Future containing the default audio device of the given type.
+The type is specified by the <a href="../win32audio/AudioDeviceType.html">AudioDeviceType</a> enum.
   
 
 </dd>
@@ -204,6 +206,7 @@
 </dt>
 <dd>
   Returns the current volume for the given audio device type.
+The type is specified by the <a href="../win32audio/AudioDeviceType.html">AudioDeviceType</a> enum.
   
 
 </dd>
@@ -217,6 +220,8 @@
 </dt>
 <dd>
   This function sets the audio mixer volume for the specified process ID. The volume level is a number between 0 and 1, with 1 being the maximum volume.
+The process ID is the process ID of the process that is using the audio mixer.
+The process ID can be obtained by calling the enumAudioMixer function.
   
 
 </dd>
@@ -230,6 +235,7 @@
 </dt>
 <dd>
   Sets the default audio device.
+The type is specified by the <a href="../win32audio/AudioDeviceType.html">AudioDeviceType</a> enum.
   
 
 </dd>
@@ -243,6 +249,7 @@
 </dt>
 <dd>
   This function sets the volume of the specified audio device type. The volume level is a number between 0 and 1, with 1 being the maximum volume.
+The type is specified by the <a href="../win32audio/AudioDeviceType.html">AudioDeviceType</a> enum.
   
 
 </dd>
@@ -255,7 +262,7 @@
 
 </dt>
 <dd>
-  This function switches the audio device to the specified type.
+  This function switches the audio device to the specified type. The type is specified by the <a href="../win32audio/AudioDeviceType.html">AudioDeviceType</a> enum.
   
 
 </dd>
@@ -287,6 +294,7 @@
   <li><a href="../win32audio/Audio-class.html">Audio</a></li>
   <li><a href="../win32audio/AudioDevice-class.html">AudioDevice</a></li>
   <li><a href="../win32audio/ProcessVolume-class.html">ProcessVolume</a></li>
+  <li><a href="../win32audio/WinIcons-class.html">WinIcons</a></li>
 
 
 
@@ -346,7 +354,7 @@
 <footer>
   <span class="no-break">
     win32audio
-      0.0.1
+      1.0.2
   </span>
 
   

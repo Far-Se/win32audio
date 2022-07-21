@@ -113,3 +113,11 @@ widget: (_audioIcons.containsKey(audioDevices[index].id))
                               )
                             : const Icon(Icons.spoke_outlined),
 ```
+
+In the same way I've made a class WinIcons() with these functions: 
+
+`extractExecutableIcon` that extract an asociated icon from any file, not only Executables, forgot to chage it's name.
+
+`extractWindowIcon` which extracts an icon from HWND/ Window Handle
+
+`extractIconHandle` which extracts an icon from HICON/ Icon Handle.

@@ -62,7 +62,9 @@
     </section>
     
 <section class="desc markdown">
-  <p>This function sets the audio mixer volume for the specified process ID. The volume level is a number between 0 and 1, with 1 being the maximum volume.</p>
+  <p>This function sets the audio mixer volume for the specified process ID. The volume level is a number between 0 and 1, with 1 being the maximum volume.
+The process ID is the process ID of the process that is using the audio mixer.
+The process ID can be obtained by calling the enumAudioMixer function.</p>
 </section>
 
 
@@ -139,7 +141,7 @@
 <footer>
   <span class="no-break">
     win32audio
-      0.0.1
+      1.0.2
   </span>
 
   

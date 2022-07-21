@@ -1,3 +1,8 @@
+## 1.1.0
+
+* Changed icon extraction process because old one crashed on monitors with higher DPI
+* Added a new class `WinIcons` with 3 functions `extractExecutableIcon`, `extractWindowIcon`, `extractIconHandle`
+
 ## 1.0.2
 
 * Documentation still missing from pub.dev -.-
