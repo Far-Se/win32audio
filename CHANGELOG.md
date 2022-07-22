@@ -1,3 +1,7 @@
+## 1.1.1
+
+* Tiny tweak at how Method sends data.
+  
 ## 1.1.0
 
 * Changed icon extraction process because old one crashed on monitors with higher DPI

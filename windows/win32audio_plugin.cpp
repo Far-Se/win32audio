@@ -153,7 +153,6 @@ std::vector<DeviceProps> EnumAudioDevices(EDataFlow deviceType = eRender)
                             pDevice->GetId(&id);
                             wstring currentID(id);
                             device.id = currentID;
-
                             if (currentID.compare(activeDevID) == 0)
                                 device.isActive = true;
                             else
@@ -487,6 +486,7 @@ namespace win32audio
             std::vector<DeviceProps> devices = EnumAudioDevices((EDataFlow)deviceType);
             // loop through devices and add them to a map
             flutter::EncodableMap map;
+            int i = 0;
             for (const auto &device : devices)
             {
                 flutter::EncodableMap deviceMap;
@@ -494,7 +494,8 @@ namespace win32audio
                 deviceMap[flutter::EncodableValue("name")] = flutter::EncodableValue(Encoding::WideToUtf8(device.name));
                 deviceMap[flutter::EncodableValue("iconInfo")] = flutter::EncodableValue(Encoding::WideToUtf8(device.iconInfo));
                 deviceMap[flutter::EncodableValue("isActive")] = flutter::EncodableValue(device.isActive);
-                map[flutter::EncodableValue(Encoding::WideToUtf8(device.id))] = flutter::EncodableValue(deviceMap);
+                map[i] = flutter::EncodableValue(deviceMap);
+                i++;
             }
             result->Success(flutter::EncodableValue(map));
         }

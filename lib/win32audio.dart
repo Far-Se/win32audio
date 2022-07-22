@@ -88,7 +88,7 @@ class Audio {
     List<AudioDevice>? audioDevices = [];
     for (var key in map.keys) {
       final audioDevice = AudioDevice();
-      audioDevice.id = key;
+      audioDevice.id = map[key]['id'];
       audioDevice.name = map[key]['name'];
       final iconData = map[key]['iconInfo'].split(",");
       audioDevice.iconPath = iconData[0];
