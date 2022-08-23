@@ -110,31 +110,31 @@ class AnimatedProgressBar extends AnimatedWidget {
 
   final FAProgressBar widget;
 
-  double transformValue(x, begin, end, before) {
+  double transformValue(num x, num begin, num end, num before) {
     double y = (end * x - (begin - before)) * (1 / before);
     return y < 0 ? 0 : ((y > 1) ? 1 : y);
   }
 
   @override
   Widget build(BuildContext context) {
-    final animation = listenable as Animation<double>;
+    final Animation<double> animation = listenable as Animation<double>;
     Color progressColor = widget.progressColor;
 
     if (widget.changeColorValue != null) {
-      final colorTween = ColorTween(
+      final ColorTween colorTween = ColorTween(
         begin: widget.progressColor,
         end: widget.changeProgressColor,
       );
 
       progressColor = colorTween.transform(transformValue(
         animation.value,
-        widget.changeColorValue,
+        widget.changeColorValue ?? 0,
         widget.maxValue,
         5,
       ))!;
     }
 
-    List<Widget> progressWidgets = [];
+    List<Widget> progressWidgets = <Widget>[];
     Widget progressWidget = Container(
       decoration: BoxDecoration(
         color: progressColor,

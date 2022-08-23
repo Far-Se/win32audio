@@ -16,14 +16,15 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-Map<String, Uint8List?> _audioIcons = {};
+Map<String, Uint8List?> _audioIcons = <String, Uint8List?>{};
 
 class _MyAppState extends State<MyApp> {
-  var defaultDevice = AudioDevice();
-  var audioDevices = <AudioDevice>[];
-  var audioDeviceType = AudioDeviceType.output;
+  AudioDevice defaultDevice = AudioDevice();
+  List<AudioDevice> audioDevices = <AudioDevice>[];
+  AudioDeviceType audioDeviceType = AudioDeviceType.output;
+  final WinIcons winIcons = WinIcons();
 
-  var mixerList = <ProcessVolume>[];
+  List<ProcessVolume> mixerList = <ProcessVolume>[];
   bool _stateFetchAudioMixerPeak = false;
 
   double __volume = 0.0;
@@ -32,13 +33,13 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     fetchAudioDevices();
-    Timer.periodic(const Duration(milliseconds: 150), (timer) async {
+    Timer.periodic(const Duration(milliseconds: 150), (Timer timer) async {
       if (_stateFetchAudioMixerPeak) {
-        mixerList = await Audio.enumAudioMixer() ?? [];
+        mixerList = await Audio.enumAudioMixer() ?? <ProcessVolume>[];
 
-        for (var mixer in mixerList) {
+        for (ProcessVolume mixer in mixerList) {
           if (_audioIcons[mixer.processPath] == null) {
-            _audioIcons[mixer.processPath] = await nativeIconToBytes(mixer.processPath);
+            _audioIcons[mixer.processPath] = await WinIcons().extractFileIcon(mixer.processPath);
           }
         }
         setState(() {});
@@ -48,21 +49,21 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> fetchAudioDevices() async {
     if (!mounted) return;
-    audioDevices = await Audio.enumDevices(audioDeviceType) ?? [];
+    audioDevices = await Audio.enumDevices(audioDeviceType) ?? <AudioDevice>[];
     __volume = await Audio.getVolume(audioDeviceType);
     defaultDevice = (await Audio.getDefaultDevice(audioDeviceType))!;
 
-    _audioIcons = {};
-    for (var audioDevice in audioDevices) {
+    _audioIcons = <String, Uint8List>{};
+    for (AudioDevice audioDevice in audioDevices) {
       if (_audioIcons[audioDevice.id] == null) {
-        _audioIcons[audioDevice.id] = await nativeIconToBytes(audioDevice.iconPath, iconID: audioDevice.iconID);
+        _audioIcons[audioDevice.id] = await WinIcons().extractFileIcon(audioDevice.iconPath, iconID: audioDevice.iconID);
       }
     }
 
-    mixerList = await Audio.enumAudioMixer() ?? [];
-    for (var mixer in mixerList) {
+    mixerList = await Audio.enumAudioMixer() ?? <ProcessVolume>[];
+    for (ProcessVolume mixer in mixerList) {
       if (_audioIcons[mixer.processPath] == null) {
-        _audioIcons[mixer.processPath] = await nativeIconToBytes(mixer.processPath);
+        _audioIcons[mixer.processPath] = await WinIcons().extractFileIcon(mixer.processPath);
       }
     }
 
@@ -82,7 +83,7 @@ class _MyAppState extends State<MyApp> {
             child: //write a widget that expands to the whole screen and has three elements, one on the left and two on the right.
                 Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+              children: <Widget>[
                 Container(
                   alignment: Alignment.centerLeft,
                   width: 100,
@@ -140,19 +141,19 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+          children: <Widget>[
             //?  SELECT AUDIO DEVICE
             //? DROPDOWN
-            Column(children: [
-              DropdownButton(
+            Column(children: <Widget>[
+              DropdownButton<AudioDeviceType>(
                   value: audioDeviceType,
-                  items: AudioDeviceType.values.map((e) {
-                    return DropdownMenuItem(
+                  items: AudioDeviceType.values.map((AudioDeviceType e) {
+                    return DropdownMenuItem<AudioDeviceType>(
                       value: e,
                       child: Text(e.toString()),
                     );
                   }).toList(),
-                  onChanged: (e) async {
+                  onChanged: (Object? e) async {
                     audioDeviceType = e as AudioDeviceType;
                     fetchStatus = e.toString();
                     fetchAudioDevices();
@@ -181,7 +182,7 @@ class _MyAppState extends State<MyApp> {
                 min: 0,
                 max: 1,
                 divisions: 25,
-                onChanged: (e) async {
+                onChanged: (double e) async {
                   await Audio.setVolume(e.toDouble(), audioDeviceType);
                   __volume = e;
                   setState(() {});
@@ -194,13 +195,14 @@ class _MyAppState extends State<MyApp> {
                 fit: FlexFit.loose,
                 child: ListView.builder(
                     itemCount: audioDevices.length,
-                    itemBuilder: (context, index) {
+                    itemBuilder: (BuildContext context, int index) {
                       return ListTile(
                         leading: (_audioIcons.containsKey(audioDevices[index].id))
                             ? Image.memory(
                                 _audioIcons[audioDevices[index].id] ?? Uint8List(0),
                                 width: 32,
                                 height: 32,
+                                gaplessPlayback: true,
                               )
                             : const Icon(Icons.spoke_outlined),
                         title: Text(audioDevices[index].name),
@@ -225,7 +227,7 @@ class _MyAppState extends State<MyApp> {
                 title: const Text("Countinously Fetch Audio Mixer"),
                 value: _stateFetchAudioMixerPeak,
                 controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (e) {
+                onChanged: (bool? e) {
                   setState(() {
                     _stateFetchAudioMixerPeak = e!;
                   });
@@ -237,9 +239,9 @@ class _MyAppState extends State<MyApp> {
               flex: 3,
               child: ListView.builder(
                   itemCount: mixerList.length,
-                  itemBuilder: (context, index) {
+                  itemBuilder: (BuildContext context, int index) {
                     return Column(
-                      children: [
+                      children: <Widget>[
                         const Divider(
                           height: 6,
                           thickness: 3,
@@ -248,7 +250,7 @@ class _MyAppState extends State<MyApp> {
                           endIndent: 100,
                         ),
                         Row(
-                          children: [
+                          children: <Widget>[
                             Flexible(
                                 child: ListTile(
                                     leading: (_audioIcons.containsKey(mixerList[index].processPath))
@@ -256,6 +258,7 @@ class _MyAppState extends State<MyApp> {
                                             _audioIcons[mixerList[index].processPath] ?? Uint8List(0),
                                             width: 32,
                                             height: 32,
+                                            gaplessPlayback: true,
                                           )
                                         : const Icon(Icons.spoke_outlined),
                                     title: Text(mixerList[index].processPath))),
@@ -263,13 +266,13 @@ class _MyAppState extends State<MyApp> {
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 20),
                                 child: Column(
-                                  children: [
+                                  children: <Widget>[
                                     Slider(
                                       value: mixerList[index].maxVolume,
                                       min: 0,
                                       max: 1,
                                       divisions: 25,
-                                      onChanged: (e) async {
+                                      onChanged: (double e) async {
                                         await Audio.setAudioMixerVolume(mixerList[index].processId, e.toDouble());
                                         mixerList[index].maxVolume = e;
                                         setState(() {});

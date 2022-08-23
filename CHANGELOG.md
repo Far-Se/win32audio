@@ -1,3 +1,8 @@
+## 1.2
+
+* Added new parameters  for setDefaultDevice and switchDefaultDevice:
+* `{bool console = false, bool multimedia = true, bool communications = false}`
+
 ## 1.1.1
 
 * Tiny tweak at how Method sends data.

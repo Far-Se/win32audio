@@ -41,11 +41,11 @@ Also includes a utilitary function `nativeIconToBytes` that can be used for othe
 
 `id` is COM string
 ```dart
-await Audio.setDefaultDevice(audioDevices[0].id);
+await Audio.setDefaultDevice(audioDevices[0].id, {bool console = false, bool multimedia = true, bool communications = false});
 ```
 #### Switch to next Audio Device
 ```dart
-    await Audio.switchDefaultDevice(audioDeviceType);
+    await Audio.switchDefaultDevice(audioDeviceType, {bool console = false, bool multimedia = true, bool communications = false});
 ```
 ## Volume
 
@@ -116,7 +116,7 @@ widget: (_audioIcons.containsKey(audioDevices[index].id))
 
 In the same way I've made a class WinIcons() with these functions: 
 
-`extractExecutableIcon` that extract an asociated icon from any file, not only Executables, forgot to chage it's name.
+`extractFileIcon` that extract an asociated icon from any file.
 
 `extractWindowIcon` which extracts an icon from HWND/ Window Handle
 

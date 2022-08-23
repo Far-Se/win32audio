@@ -196,7 +196,7 @@ DeviceProps getDefaultDevice(EDataFlow deviceType = eRender)
     return DeviceProps();
 }
 
-static HRESULT setDefaultDevice(LPWSTR devID)
+static HRESULT setDefaultDevice(LPWSTR devID, bool console, bool multimedia, bool communications)
 {
     IPolicyConfigVista *pPolicyConfig = nullptr;
 
@@ -204,9 +204,12 @@ static HRESULT setDefaultDevice(LPWSTR devID)
                                   NULL, CLSCTX_ALL, __uuidof(IPolicyConfigVista), (LPVOID *)&pPolicyConfig);
     if (SUCCEEDED(hr))
     {
-        hr = pPolicyConfig->SetDefaultEndpoint(devID, eConsole);
-        hr = pPolicyConfig->SetDefaultEndpoint(devID, eMultimedia);
-        hr = pPolicyConfig->SetDefaultEndpoint(devID, eCommunications);
+        if (console)
+            hr = pPolicyConfig->SetDefaultEndpoint(devID, eConsole);
+        if (multimedia)
+            hr = pPolicyConfig->SetDefaultEndpoint(devID, eMultimedia);
+        if (communications)
+            hr = pPolicyConfig->SetDefaultEndpoint(devID, eCommunications);
         pPolicyConfig->Release();
     }
     // delete pPolicyConfig;
@@ -302,7 +305,7 @@ bool setVolume(float volumeLevel, EDataFlow deviceType = eRender)
     }
     return true;
 }
-static int switchDefaultDevice(EDataFlow deviceType = eRender)
+static int switchDefaultDevice(EDataFlow deviceType, bool console, bool multimedia, bool communications)
 {
     std::vector<DeviceProps> result = EnumAudioDevices(deviceType);
     if (!result.empty())
@@ -320,7 +323,7 @@ static int switchDefaultDevice(EDataFlow deviceType = eRender)
         }
         if (activateID == L"x" || activateID == L"")
             activateID = result[0].id;
-        setDefaultDevice((LPWSTR)activateID.c_str());
+        setDefaultDevice((LPWSTR)activateID.c_str(), console, multimedia, communications);
         return 1;
     }
     return 0;
@@ -516,8 +519,11 @@ namespace win32audio
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             std::string deviceID = std::get<std::string>(args.at(flutter::EncodableValue("deviceID")));
+            bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
+            bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
+            bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
             std::wstring deviceIDW = Encoding::Utf8ToWide(deviceID);
-            HRESULT nativeFuncResult = setDefaultDevice((LPWSTR)deviceIDW.c_str());
+            HRESULT nativeFuncResult = setDefaultDevice((LPWSTR)deviceIDW.c_str(), console, multimedia, communications);
             result->Success(flutter::EncodableValue((int)nativeFuncResult));
         }
         else if (method_call.method_name().compare("getAudioVolume") == 0)
@@ -539,8 +545,11 @@ namespace win32audio
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            int nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType);
-            result->Success(flutter::EncodableValue((double)nativeFuncResult));
+            bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
+            bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
+            bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
+            bool nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType, console, multimedia, communications);
+            result->Success(flutter::EncodableValue(nativeFuncResult));
         }
         else if (method_call.method_name().compare("iconToBytes") == 0)
         {
