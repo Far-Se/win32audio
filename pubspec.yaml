@@ -1,7 +1,7 @@
 # dart pub publish
 name: win32audio
 description: A Windows plugin that fetches audio devices, sets default device, sets Master Volume and specific app volume and as an extra, extracts icon from exe/HWND/HICON
-version: 1.2
+version: 1.3.0
 homepage: https://github.com/Far-Se/win32audio
 
 environment:

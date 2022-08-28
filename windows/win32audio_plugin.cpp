@@ -112,7 +112,7 @@ static HRESULT getDeviceProperty(IMMDevice *pDevice, DeviceProps *output)
     return hr;
 }
 
-std::vector<DeviceProps> EnumAudioDevices(EDataFlow deviceType = eRender)
+std::vector<DeviceProps> EnumAudioDevices(EDataFlow deviceType, ERole eRole)
 {
     std::vector<DeviceProps> output;
 
@@ -125,7 +125,7 @@ std::vector<DeviceProps> EnumAudioDevices(EDataFlow deviceType = eRender)
         {
             IMMDevice *pActive = NULL;
 
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eMultimedia, &pActive);
+            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
             LPWSTR activeID;
             pActive->GetId(&activeID);
             wstring activeDevID(activeID);
@@ -170,7 +170,7 @@ std::vector<DeviceProps> EnumAudioDevices(EDataFlow deviceType = eRender)
     return output;
 }
 
-DeviceProps getDefaultDevice(EDataFlow deviceType = eRender)
+DeviceProps getDefaultDevice(EDataFlow deviceType, ERole eRole)
 {
     std::vector<DeviceProps> output;
 
@@ -183,7 +183,7 @@ DeviceProps getDefaultDevice(EDataFlow deviceType = eRender)
         {
             IMMDevice *pActive = NULL;
 
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eMultimedia, &pActive);
+            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
             DeviceProps activeDevice;
             getDeviceProperty(pActive, &activeDevice);
             LPWSTR aid;
@@ -216,7 +216,7 @@ static HRESULT setDefaultDevice(LPWSTR devID, bool console, bool multimedia, boo
     return hr;
 }
 
-float getVolume(EDataFlow deviceType = eRender)
+float getVolume(EDataFlow deviceType, ERole eRole)
 {
     std::vector<DeviceProps> output;
 
@@ -229,7 +229,7 @@ float getVolume(EDataFlow deviceType = eRender)
         {
             IMMDevice *pActive = NULL;
 
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eMultimedia, &pActive);
+            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
             DeviceProps activeDevice;
             getDeviceProperty(pActive, &activeDevice);
             LPWSTR aid;
@@ -251,7 +251,7 @@ float getVolume(EDataFlow deviceType = eRender)
     }
     return 0.0;
 }
-bool registerNotificationCallback(EDataFlow deviceType = eRender)
+bool registerNotificationCallback(EDataFlow deviceType, ERole eRole)
 {
     std::vector<DeviceProps> output;
 
@@ -264,14 +264,14 @@ bool registerNotificationCallback(EDataFlow deviceType = eRender)
         {
             IMMDevice *pActive = NULL;
 
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eMultimedia, &pActive);
+            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
             IMMNotificationClient *pNotify = NULL;
             pEnumerator->RegisterEndpointNotificationCallback(pNotify);
         }
     }
     return 0.0;
 }
-bool setVolume(float volumeLevel, EDataFlow deviceType = eRender)
+bool setVolume(float volumeLevel, EDataFlow deviceType, ERole eRole)
 {
     std::vector<DeviceProps> output;
 
@@ -284,7 +284,7 @@ bool setVolume(float volumeLevel, EDataFlow deviceType = eRender)
         {
             IMMDevice *pActive = NULL;
 
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eMultimedia, &pActive);
+            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
             DeviceProps activeDevice;
             getDeviceProperty(pActive, &activeDevice);
             LPWSTR aid;
@@ -305,9 +305,9 @@ bool setVolume(float volumeLevel, EDataFlow deviceType = eRender)
     }
     return true;
 }
-static int switchDefaultDevice(EDataFlow deviceType, bool console, bool multimedia, bool communications)
+static int switchDefaultDevice(EDataFlow deviceType, ERole eRole, bool console, bool multimedia, bool communications)
 {
-    std::vector<DeviceProps> result = EnumAudioDevices(deviceType);
+    std::vector<DeviceProps> result = EnumAudioDevices(deviceType, eRole);
     if (!result.empty())
     {
         std::wstring activateID(L"");
@@ -331,7 +331,7 @@ static int switchDefaultDevice(EDataFlow deviceType, bool console, bool multimed
 
 /// Audio Session
 
-IAudioSessionEnumerator *GetAudioSessionEnumerator()
+IAudioSessionEnumerator *GetAudioSessionEnumerator(ERole eRole)
 {
     IMMDeviceEnumerator *deviceEnumerator = nullptr;
     HRESULT x = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER, __uuidof(IMMDeviceEnumerator), (LPVOID *)&deviceEnumerator);
@@ -339,7 +339,7 @@ IAudioSessionEnumerator *GetAudioSessionEnumerator()
     {
     }
     IMMDevice *device = nullptr;
-    deviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device);
+    deviceEnumerator->GetDefaultAudioEndpoint(eRender, eRole, &device);
 
     IAudioSessionManager2 *sessionManager = nullptr;
     device->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void **)&sessionManager);
@@ -404,14 +404,14 @@ float GetPeakVolumeFromAudioSessionControl(IAudioSessionControl *session)
 
     return peakVolume;
 }
-std::vector<ProcessVolume> GetProcessVolumes(int pID = 0, float volume = 0.0)
+std::vector<ProcessVolume> GetProcessVolumes(ERole eRole, int pID = 0, float volume = 0.0)
 {
     std::vector<ProcessVolume> volumes;
 
     HRESULT hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
     if (hr)
     {
-        IAudioSessionEnumerator *enumerator = GetAudioSessionEnumerator();
+        IAudioSessionEnumerator *enumerator = GetAudioSessionEnumerator(eRole);
         int sessionCount;
         enumerator->GetCount(&sessionCount);
         for (int index = 0; index < sessionCount; index++)
@@ -486,7 +486,8 @@ namespace win32audio
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            std::vector<DeviceProps> devices = EnumAudioDevices((EDataFlow)deviceType);
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+            std::vector<DeviceProps> devices = EnumAudioDevices((EDataFlow)deviceType, (ERole)role);
             // loop through devices and add them to a map
             flutter::EncodableMap map;
             int i = 0;
@@ -506,7 +507,8 @@ namespace win32audio
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            DeviceProps device = getDefaultDevice((EDataFlow)deviceType);
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+            DeviceProps device = getDefaultDevice((EDataFlow)deviceType, (ERole)role);
 
             flutter::EncodableMap deviceMap;
             deviceMap[flutter::EncodableValue("id")] = flutter::EncodableValue(Encoding::WideToUtf8(device.id));
@@ -530,25 +532,28 @@ namespace win32audio
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            float nativeFuncResult = getVolume((EDataFlow)deviceType);
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+            float nativeFuncResult = getVolume((EDataFlow)deviceType, (ERole)role);
             result->Success(flutter::EncodableValue((double)nativeFuncResult));
         }
         else if (method_call.method_name().compare("setAudioVolume") == 0)
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
             double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
-            setVolume((float)volumeLevel, (EDataFlow)deviceType);
+            setVolume((float)volumeLevel, (EDataFlow)deviceType, (ERole)role);
             result->Success(flutter::EncodableValue((int)1));
         }
         else if (method_call.method_name().compare("switchDefaultDevice") == 0)
         {
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
             int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
             bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
             bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
             bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
-            bool nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType, console, multimedia, communications);
+            bool nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType, (ERole)role, console, multimedia, communications);
             result->Success(flutter::EncodableValue(nativeFuncResult));
         }
         else if (method_call.method_name().compare("iconToBytes") == 0)
@@ -651,7 +656,9 @@ namespace win32audio
         }
         else if (method_call.method_name().compare("enumAudioMixer") == 0)
         {
-            std::vector<ProcessVolume> devices = GetProcessVolumes();
+            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+            std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role);
             // loop through devices and add them to a map
             flutter::EncodableMap map;
             for (const auto &device : devices)
@@ -669,9 +676,10 @@ namespace win32audio
         {
 
             const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
             int processID = std::get<int>(args.at(flutter::EncodableValue("processID")));
             double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
-            std::vector<ProcessVolume> devices = GetProcessVolumes(processID, (float)volumeLevel);
+            std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role, processID, (float)volumeLevel);
             result->Success(flutter::EncodableValue(true));
         }
         // write method ListAudioDevices

@@ -1,6 +1,11 @@
-## 1.2
+## 1.3.0
 
-* Added new parameters  for setDefaultDevice and switchDefaultDevice:
+* Added `AudioRole` class, with `  console,  multimedia,  communications,` as parameters
+* This parameters is ignored on functions that have audioRole and also separate roles as paramters, such as `setDefaultDevice` and `switchDefaultDevice`.
+
+## 1.2.0
+
+* Added new parameters for setDefaultDevice and switchDefaultDevice:
 * `{bool console = false, bool multimedia = true, bool communications = false}`
 
 ## 1.1.1
