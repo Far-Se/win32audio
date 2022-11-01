@@ -1,3 +1,6 @@
+## 1.3.1
+* Fixed an issue with missing icon id error
+
 ## 1.3.0
 
 * Added `AudioRole` class, with `  console,  multimedia,  communications,` as parameters

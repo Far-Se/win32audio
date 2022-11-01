@@ -1,5 +1,4 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
-import "dart:typed_data";
 
 import "package:flutter/services.dart";
 
@@ -97,8 +96,13 @@ class Audio {
       audioDevice.id = map[key]["id"];
       audioDevice.name = map[key]["name"];
       final List<String> iconData = map[key]["iconInfo"].split(",");
-      audioDevice.iconPath = iconData[0];
-      audioDevice.iconID = int.parse(iconData[1]);
+      if (iconData.length == 2) {
+        audioDevice.iconPath = iconData[0];
+        audioDevice.iconID = int.tryParse(iconData[1]) ?? -1;
+      } else {
+        audioDevice.iconPath = map[key]["iconInfo"];
+        audioDevice.iconID = -1;
+      }
       audioDevice.isActive = map[key]["isActive"];
       audioDevices.add(audioDevice);
     }
@@ -115,8 +119,13 @@ class Audio {
     audioDevice.id = map["id"];
     audioDevice.name = map["name"];
     final List<String> iconData = map["iconInfo"].split(",");
-    audioDevice.iconPath = iconData[0];
-    audioDevice.iconID = int.parse(iconData[1]);
+    if (iconData.length == 2) {
+      audioDevice.iconPath = iconData[0];
+      audioDevice.iconID = int.tryParse(iconData[1]) ?? -1;
+    } else {
+      audioDevice.iconPath = map["iconInfo"];
+      audioDevice.iconID = -1;
+    }
     audioDevice.isActive = map["isActive"];
     return audioDevice;
   }
