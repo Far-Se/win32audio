@@ -64,6 +64,11 @@ struct DeviceProps
 
 static HRESULT getDeviceProperty(IMMDevice *pDevice, DeviceProps *output)
 {
+    if (pDevice == nullptr)
+    {
+        return E_POINTER;
+    }
+    
     IPropertyStore *pStore = NULL;
     HRESULT hr = pDevice->OpenPropertyStore(STGM_READ, &pStore);
     if (SUCCEEDED(hr))
@@ -185,12 +190,14 @@ DeviceProps getDefaultDevice(EDataFlow deviceType, ERole eRole)
         {
             IMMDevice *pActive = NULL;
 
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
+            hr = pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
             DeviceProps activeDevice;
-            getDeviceProperty(pActive, &activeDevice);
-            LPWSTR aid;
-            pActive->GetId(&aid);
-            activeDevice.id = aid;
+            if (SUCCEEDED(hr) && pActive != nullptr) {
+                getDeviceProperty(pActive, &activeDevice);
+                LPWSTR aid;
+                pActive->GetId(&aid);
+                activeDevice.id = aid;
+            }
 
             return activeDevice;
         }
