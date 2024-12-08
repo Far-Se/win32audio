@@ -16,7 +16,7 @@
 #include <vector>
 #include "include/Policyconfig.h"
 #include "include/encoding.h"
-//#include "hicon_to_bytes.cpp"
+// #include "hicon_to_bytes.cpp"
 
 #pragma warning(push)
 #pragma warning(disable : 4201)
@@ -64,56 +64,72 @@ struct DeviceProps
 
 static HRESULT getDeviceProperty(IMMDevice *pDevice, DeviceProps *output)
 {
-    if (pDevice == nullptr)
+    if (pDevice == nullptr || output == nullptr)
     {
         return E_POINTER;
     }
-    
-    IPropertyStore *pStore = NULL;
-    HRESULT hr = pDevice->OpenPropertyStore(STGM_READ, &pStore);
+
+    IPropertyStore *propertyStore = nullptr;
+    HRESULT hr = pDevice->OpenPropertyStore(STGM_READ, &propertyStore);
     if (SUCCEEDED(hr))
     {
-        PROPVARIANT prop;
-        PropVariantInit(&prop);
-        hr = pStore->GetValue(PKEY_Device_FriendlyName, &prop);
+        PROPVARIANT friendlyNameProperty = {0};
+        PropVariantInit(&friendlyNameProperty);
+        hr = propertyStore->GetValue(PKEY_Device_FriendlyName, &friendlyNameProperty);
         if (SUCCEEDED(hr))
         {
-            if (IsPropVariantString(prop))
+            if (IsPropVariantString(friendlyNameProperty))
             {
-                // 3h of debugging wchar to char conversion just to find out
-                // this dumb function does not work propertly :)
-                // output->name = PropVariantToStringWithDefault(prop, L"missing"); <- 3h of debugging
-
                 STRRET strret;
-                PropVariantToStrRet(prop, &strret);
+                PropVariantToStrRet(friendlyNameProperty, &strret);
                 output->name = strret.pOleStr;
             }
             else
-                hr = E_UNEXPECTED;
-        }
-        PROPVARIANT prop2;
-        PropVariantInit(&prop2);
-        hr = pStore->GetValue(PKEY_DeviceClass_IconPath, &prop2);
-        if (SUCCEEDED(hr))
-        {
-            if (IsPropVariantString(prop2))
             {
-                STRRET strret;
-                PropVariantToStrRet(prop2, &strret);
-                output->iconInfo = strret.pOleStr;
+                hr = E_UNEXPECTED;
             }
 
+            PropVariantClear(&friendlyNameProperty);
+        }
+        else
+        {
+            // handle exceptions
+            OutputDebugString(L"Failed to get friendly name\n");
+        }
+
+        PROPVARIANT iconPathProperty = {0};
+        PropVariantInit(&iconPathProperty);
+        hr = propertyStore->GetValue(PKEY_DeviceClass_IconPath, &iconPathProperty);
+        if (SUCCEEDED(hr))
+        {
+            if (IsPropVariantString(iconPathProperty))
+            {
+                STRRET strret;
+                PropVariantToStrRet(iconPathProperty, &strret);
+                output->iconInfo = strret.pOleStr;
+            }
             else
             {
                 output->iconInfo = L"missing,0";
                 hr = E_UNEXPECTED;
             }
+
+            PropVariantClear(&iconPathProperty);
         }
-        PropVariantClear(&prop);
-        PropVariantClear(&prop2);
-        pStore->Release();
+        else
+        {
+            // handle exceptions
+            OutputDebugString(L"Failed to get icon path\n");
+        }
+
+        propertyStore->Release();
     }
-    // delete pStore;
+    else
+    {
+        // handle exceptions
+        OutputDebugString(L"Failed to open property store\n");
+    }
+
     return hr;
 }
 
@@ -122,87 +138,131 @@ std::vector<DeviceProps> EnumAudioDevices(EDataFlow deviceType, ERole eRole)
     std::vector<DeviceProps> output;
 
     HRESULT hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
-    if (SUCCEEDED(hr))
+    if (FAILED(hr))
     {
-        IMMDeviceEnumerator *pEnumerator = NULL;
-        hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_IMMDeviceEnumerator, reinterpret_cast<void **>(&pEnumerator));
-        if (SUCCEEDED(hr))
-        {
-            IMMDevice *pActive = NULL;
-            wstring activeDevID;
-
-            hr = pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
-            if (SUCCEEDED(hr) && pActive != NULL) {
-                LPWSTR activeID;
-                pActive->GetId(&activeID);
-                activeDevID = activeID;
-                pActive->Release();
-            }
-
-            IMMDeviceCollection *pCollection = NULL;
-            hr = pEnumerator->EnumAudioEndpoints(deviceType, DEVICE_STATE_ACTIVE, &pCollection);
-            if (SUCCEEDED(hr))
-            {
-                UINT cEndpoints = 0;
-                hr = pCollection->GetCount(&cEndpoints);
-                if (SUCCEEDED(hr))
-                {
-                    for (UINT n = 0; SUCCEEDED(hr) && n < cEndpoints; ++n)
-                    {
-                        IMMDevice *pDevice = NULL;
-                        hr = pCollection->Item(n, &pDevice);
-                        if (SUCCEEDED(hr))
-                        {
-                            DeviceProps device;
-                            getDeviceProperty(pDevice, &device);
-
-                            LPWSTR id;
-                            pDevice->GetId(&id);
-                            wstring currentID(id);
-                            device.id = currentID;
-                            if (currentID.compare(activeDevID) == 0)
-                                device.isActive = true;
-                            else
-                                device.isActive = false;
-                            output.push_back(device);
-                            pDevice->Release();
-                        }
-                    }
-                }
-                pCollection->Release();
-            }
-            pEnumerator->Release();
-        }
+        OutputDebugString(L"Failed to initialize COM\n");
+        return output;
     }
+
+    IMMDeviceEnumerator *pEnumerator = nullptr;
+    hr = CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_ALL, IID_IMMDeviceEnumerator, reinterpret_cast<void **>(&pEnumerator));
+    if (FAILED(hr) || !pEnumerator)
+    {
+        OutputDebugString(L"Failed to create device enumerator\n");
+        CoUninitialize();
+        return output;
+    }
+
+    IMMDevice *pActive = nullptr;
+    wstring activeDevID;
+
+    hr = pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
+    if (SUCCEEDED(hr) && pActive)
+    {
+        LPWSTR activeID = nullptr;
+        hr = pActive->GetId(&activeID);
+        if (SUCCEEDED(hr) && activeID)
+        {
+            activeDevID = activeID;
+            CoTaskMemFree(activeID);
+        }
+        pActive->Release();
+    }
+
+    IMMDeviceCollection *pCollection = nullptr;
+    hr = pEnumerator->EnumAudioEndpoints(deviceType, DEVICE_STATE_ACTIVE, &pCollection);
+    if (FAILED(hr) || !pCollection)
+    {
+        OutputDebugString(L"Failed to enumerate audio endpoints\n");
+        if (pEnumerator)
+            pEnumerator->Release();
+        CoUninitialize();
+        return output;
+    }
+
+    UINT cEndpoints = 0;
+    hr = pCollection->GetCount(&cEndpoints);
+    if (FAILED(hr))
+    {
+        OutputDebugString(L"Failed to get count of audio endpoints\n");
+        pCollection->Release();
+        pEnumerator->Release();
+        CoUninitialize();
+        return output;
+    }
+
+    for (UINT n = 0; n < cEndpoints; ++n)
+    {
+        IMMDevice *pDevice = nullptr;
+        hr = pCollection->Item(n, &pDevice);
+        if (FAILED(hr) || !pDevice)
+        {
+            OutputDebugString(L"Failed to get audio endpoint\n");
+            continue;
+        }
+
+        DeviceProps device;
+        if (SUCCEEDED(getDeviceProperty(pDevice, &device)))
+        {
+            LPWSTR id = nullptr;
+            hr = pDevice->GetId(&id);
+            if (SUCCEEDED(hr) && id)
+            {
+                wstring currentID(id);
+                device.id = currentID;
+                device.isActive = (currentID == activeDevID);
+                CoTaskMemFree(id);
+            }
+            output.push_back(device);
+        }
+
+        pDevice->Release();
+    }
+
+    pCollection->Release();
+    pEnumerator->Release();
+    CoUninitialize();
+
     return output;
 }
 
 DeviceProps getDefaultDevice(EDataFlow deviceType, ERole eRole)
 {
-    std::vector<DeviceProps> output;
+    DeviceProps activeDevice;
 
     HRESULT hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
     if (SUCCEEDED(hr))
     {
         IMMDeviceEnumerator *pEnumerator = NULL;
         hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_IMMDeviceEnumerator, reinterpret_cast<void **>(&pEnumerator));
-        if (SUCCEEDED(hr))
+        if (SUCCEEDED(hr) && pEnumerator != nullptr)
         {
             IMMDevice *pActive = NULL;
 
             hr = pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
-            DeviceProps activeDevice;
-            if (SUCCEEDED(hr) && pActive != nullptr) {
+            if (SUCCEEDED(hr) && pActive != nullptr)
+            {
                 getDeviceProperty(pActive, &activeDevice);
                 LPWSTR aid;
-                pActive->GetId(&aid);
-                activeDevice.id = aid;
+                hr = pActive->GetId(&aid);
+                if (SUCCEEDED(hr) && aid != nullptr)
+                {
+                    activeDevice.id = aid;
+                    CoTaskMemFree(aid);
+                }
             }
 
-            return activeDevice;
+            if (pActive != nullptr)
+                pActive->Release();
         }
+
+        if (pEnumerator != nullptr)
+            pEnumerator->Release();
     }
-    return DeviceProps();
+
+    CoUninitialize();
+
+    return activeDevice;
 }
 
 static HRESULT setDefaultDevice(LPWSTR devID, bool console, bool multimedia, bool communications)
@@ -227,38 +287,34 @@ static HRESULT setDefaultDevice(LPWSTR devID, bool console, bool multimedia, boo
 
 float getVolume(EDataFlow deviceType, ERole eRole)
 {
-    std::vector<DeviceProps> output;
+    float volumeLevel = 0.0f;
 
     HRESULT hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
     if (SUCCEEDED(hr))
     {
-        IMMDeviceEnumerator *pEnumerator = NULL;
-        hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_IMMDeviceEnumerator, reinterpret_cast<void **>(&pEnumerator));
+        IMMDeviceEnumerator *enumerator = nullptr;
+        hr = CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_ALL, IID_IMMDeviceEnumerator, reinterpret_cast<void **>(&enumerator));
         if (SUCCEEDED(hr))
         {
-            IMMDevice *pActive = NULL;
-
-            pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
-            DeviceProps activeDevice;
-            getDeviceProperty(pActive, &activeDevice);
-            LPWSTR aid;
-            pActive->GetId(&aid);
-            activeDevice.id = aid;
-
-            IAudioEndpointVolume *m_spVolumeControl = NULL;
-            hr = pActive->Activate(__uuidof(m_spVolumeControl), CLSCTX_INPROC_SERVER, NULL, (void **)&m_spVolumeControl);
+            IMMDevice *device = nullptr;
+            hr = enumerator->GetDefaultAudioEndpoint(deviceType, eRole, &device);
             if (SUCCEEDED(hr))
             {
-                float volumeLevel = 0.0;
-                m_spVolumeControl->GetMasterVolumeLevelScalar(&volumeLevel);
-
-                m_spVolumeControl->Release();
-                pActive->Release();
-                return volumeLevel;
+                IAudioEndpointVolume *volumeControl = nullptr;
+                hr = device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void **>(&volumeControl));
+                if (SUCCEEDED(hr))
+                {
+                    hr = volumeControl->GetMasterVolumeLevelScalar(&volumeLevel);
+                    volumeControl->Release();
+                }
+                device->Release();
             }
+            enumerator->Release();
         }
     }
-    return 0.0;
+    CoUninitialize();
+
+    return volumeLevel;
 }
 bool registerNotificationCallback(EDataFlow deviceType, ERole eRole)
 {
@@ -289,53 +345,76 @@ bool setVolume(float volumeLevel, EDataFlow deviceType, ERole eRole)
     {
         IMMDeviceEnumerator *pEnumerator = NULL;
         hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_IMMDeviceEnumerator, reinterpret_cast<void **>(&pEnumerator));
-        if (SUCCEEDED(hr))
+        if (SUCCEEDED(hr) && pEnumerator != nullptr)
         {
             IMMDevice *pActive = NULL;
 
             pEnumerator->GetDefaultAudioEndpoint(deviceType, eRole, &pActive);
-            DeviceProps activeDevice;
-            getDeviceProperty(pActive, &activeDevice);
-            LPWSTR aid;
-            pActive->GetId(&aid);
-            activeDevice.id = aid;
-
-            IAudioEndpointVolume *m_spVolumeControl = NULL;
-            hr = pActive->Activate(__uuidof(m_spVolumeControl), CLSCTX_INPROC_SERVER, NULL, (void **)&m_spVolumeControl);
-            if (SUCCEEDED(hr))
+            if (pActive != nullptr)
             {
-                if (volumeLevel > 1)
-                    volumeLevel = volumeLevel / 100;
-                m_spVolumeControl->SetMasterVolumeLevelScalar((float)volumeLevel, NULL);
-                m_spVolumeControl->Release();
+                DeviceProps activeDevice;
+                getDeviceProperty(pActive, &activeDevice);
+                LPWSTR aid;
+                if (SUCCEEDED(pActive->GetId(&aid)))
+                {
+                    activeDevice.id = aid;
+                    CoTaskMemFree(aid);
+                }
+
+                IAudioEndpointVolume *m_spVolumeControl = NULL;
+                hr = pActive->Activate(__uuidof(m_spVolumeControl), CLSCTX_INPROC_SERVER, NULL, (void **)&m_spVolumeControl);
+                if (SUCCEEDED(hr) && m_spVolumeControl != nullptr)
+                {
+                    if (volumeLevel > 1)
+                        volumeLevel = volumeLevel / 100;
+                    m_spVolumeControl->SetMasterVolumeLevelScalar((float)volumeLevel, NULL);
+                    m_spVolumeControl->Release();
+                }
                 pActive->Release();
             }
+            pEnumerator->Release();
         }
     }
+    CoUninitialize();
+
     return true;
 }
-static int switchDefaultDevice(EDataFlow deviceType, ERole eRole, bool console, bool multimedia, bool communications)
+static int switchDefaultDevice(EDataFlow deviceType, ERole role, bool console, bool multimedia, bool communications)
 {
-    std::vector<DeviceProps> result = EnumAudioDevices(deviceType, eRole);
-    if (!result.empty())
+    std::vector<DeviceProps> devices = EnumAudioDevices(deviceType, role);
+    if (devices.empty())
     {
-        std::wstring activateID(L"");
-        for (const auto &device : result)
-        {
-            if (activateID == L"x")
-            {
-                activateID = device.id;
-                break;
-            }
-            if (device.isActive)
-                activateID = L"x";
-        }
-        if (activateID == L"x" || activateID == L"")
-            activateID = result[0].id;
-        setDefaultDevice((LPWSTR)activateID.c_str(), console, multimedia, communications);
-        return 1;
+        return 0; // No devices found
     }
-    return 0;
+
+    std::wstring activeDeviceId;
+    for (const auto &device : devices)
+    {
+        if (!activeDeviceId.empty())
+        {
+            activeDeviceId = device.id;
+            break;
+        }
+        if (device.isActive)
+        {
+            activeDeviceId = L"x";
+        }
+    }
+
+    if (activeDeviceId.empty() || activeDeviceId == L"x")
+    {
+        activeDeviceId = devices[0].id;
+    }
+
+    try
+    {
+        setDefaultDevice((LPWSTR)activeDeviceId.c_str(), console, multimedia, communications);
+        return 1; // Success
+    }
+    catch (const std::exception &)
+    {
+        return 0; // Failed to set default device
+    }
 }
 
 /// Audio Session
@@ -471,179 +550,137 @@ std::vector<ProcessVolume> GetProcessVolumes(ERole eRole, int pID = 0, float vol
     return std::vector<ProcessVolume>{};
 }
 
-namespace win32audio
+// static
+void Win32audioPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
 {
+    auto channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(registrar->messenger(), "win32audio", &flutter::StandardMethodCodec::GetInstance());
+    auto plugin = std::make_unique<Win32audioPlugin>();
+    channel->SetMethodCallHandler([plugin_pointer = plugin.get()](const auto &call, auto result)
+                                  { plugin_pointer->HandleMethodCall(call, std::move(result)); });
 
-    // static
-    void Win32audioPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar)
+    registrar->AddPlugin(std::move(plugin));
+}
+
+Win32audioPlugin::Win32audioPlugin() {}
+
+Win32audioPlugin::~Win32audioPlugin() {}
+
+void Win32audioPlugin::HandleMethodCall(const flutter::MethodCall<flutter::EncodableValue> &method_call, std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result)
+{
+    if (method_call.method_name().compare("enumAudioDevices") == 0)
     {
-        auto channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(registrar->messenger(), "win32audio", &flutter::StandardMethodCodec::GetInstance());
-        auto plugin = std::make_unique<Win32audioPlugin>();
-        channel->SetMethodCallHandler([plugin_pointer = plugin.get()](const auto &call, auto result)
-                                      { plugin_pointer->HandleMethodCall(call, std::move(result)); });
-
-        registrar->AddPlugin(std::move(plugin));
-    }
-
-    Win32audioPlugin::Win32audioPlugin() {}
-
-    Win32audioPlugin::~Win32audioPlugin() {}
-
-    void Win32audioPlugin::HandleMethodCall(const flutter::MethodCall<flutter::EncodableValue> &method_call, std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result)
-    {
-        if (method_call.method_name().compare("enumAudioDevices") == 0)
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        std::vector<DeviceProps> devices = EnumAudioDevices((EDataFlow)deviceType, (ERole)role);
+        // loop through devices and add them to a map
+        flutter::EncodableMap map;
+        int i = 0;
+        for (const auto &device : devices)
         {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            std::vector<DeviceProps> devices = EnumAudioDevices((EDataFlow)deviceType, (ERole)role);
-            // loop through devices and add them to a map
-            flutter::EncodableMap map;
-            int i = 0;
-            for (const auto &device : devices)
-            {
-                flutter::EncodableMap deviceMap;
-                deviceMap[flutter::EncodableValue("id")] = flutter::EncodableValue(Encoding::WideToUtf8(device.id));
-                deviceMap[flutter::EncodableValue("name")] = flutter::EncodableValue(Encoding::WideToUtf8(device.name));
-                deviceMap[flutter::EncodableValue("iconInfo")] = flutter::EncodableValue(Encoding::WideToUtf8(device.iconInfo));
-                deviceMap[flutter::EncodableValue("isActive")] = flutter::EncodableValue(device.isActive);
-                map[i] = flutter::EncodableValue(deviceMap);
-                i++;
-            }
-            result->Success(flutter::EncodableValue(map));
-        }
-        else if (method_call.method_name().compare("getDefaultDevice") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            DeviceProps device = getDefaultDevice((EDataFlow)deviceType, (ERole)role);
-
             flutter::EncodableMap deviceMap;
             deviceMap[flutter::EncodableValue("id")] = flutter::EncodableValue(Encoding::WideToUtf8(device.id));
             deviceMap[flutter::EncodableValue("name")] = flutter::EncodableValue(Encoding::WideToUtf8(device.name));
             deviceMap[flutter::EncodableValue("iconInfo")] = flutter::EncodableValue(Encoding::WideToUtf8(device.iconInfo));
             deviceMap[flutter::EncodableValue("isActive")] = flutter::EncodableValue(device.isActive);
-            result->Success(flutter::EncodableValue(deviceMap));
+            map[i] = flutter::EncodableValue(deviceMap);
+            i++;
         }
-        else if (method_call.method_name().compare("setDefaultAudioDevice") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            std::string deviceID = std::get<std::string>(args.at(flutter::EncodableValue("deviceID")));
-            bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
-            bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
-            bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
-            std::wstring deviceIDW = Encoding::Utf8ToWide(deviceID);
-            HRESULT nativeFuncResult = setDefaultDevice((LPWSTR)deviceIDW.c_str(), console, multimedia, communications);
-            result->Success(flutter::EncodableValue((int)nativeFuncResult));
-        }
-        else if (method_call.method_name().compare("getAudioVolume") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            float nativeFuncResult = getVolume((EDataFlow)deviceType, (ERole)role);
-            result->Success(flutter::EncodableValue((double)nativeFuncResult));
-        }
-        else if (method_call.method_name().compare("setAudioVolume") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
-            setVolume((float)volumeLevel, (EDataFlow)deviceType, (ERole)role);
-            result->Success(flutter::EncodableValue((int)1));
-        }
-        else if (method_call.method_name().compare("switchDefaultDevice") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
-            bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
-            bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
-            bool nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType, (ERole)role, console, multimedia, communications);
-            result->Success(flutter::EncodableValue(nativeFuncResult));
-        }
-        else if (method_call.method_name().compare("iconToBytes") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            std::string iconLocation = std::get<std::string>(args.at(flutter::EncodableValue("iconLocation")));
-            int iconID = std::get<int>(args.at(flutter::EncodableValue("iconID")));
-            std::wstring iconLocationW = Encoding::Utf8ToWide(iconLocation);
-            HICON icon = getIconFromFile((LPWSTR)iconLocationW.c_str(), iconID);
+        result->Success(flutter::EncodableValue(map));
+    }
+    else if (method_call.method_name().compare("getDefaultDevice") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        DeviceProps device = getDefaultDevice((EDataFlow)deviceType, (ERole)role);
 
+        flutter::EncodableMap deviceMap;
+        deviceMap[flutter::EncodableValue("id")] = flutter::EncodableValue(Encoding::WideToUtf8(device.id));
+        deviceMap[flutter::EncodableValue("name")] = flutter::EncodableValue(Encoding::WideToUtf8(device.name));
+        deviceMap[flutter::EncodableValue("iconInfo")] = flutter::EncodableValue(Encoding::WideToUtf8(device.iconInfo));
+        deviceMap[flutter::EncodableValue("isActive")] = flutter::EncodableValue(device.isActive);
+        result->Success(flutter::EncodableValue(deviceMap));
+    }
+    else if (method_call.method_name().compare("setDefaultAudioDevice") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        std::string deviceID = std::get<std::string>(args.at(flutter::EncodableValue("deviceID")));
+        bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
+        bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
+        bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
+        std::wstring deviceIDW = Encoding::Utf8ToWide(deviceID);
+        HRESULT nativeFuncResult = setDefaultDevice((LPWSTR)deviceIDW.c_str(), console, multimedia, communications);
+        result->Success(flutter::EncodableValue((int)nativeFuncResult));
+    }
+    else if (method_call.method_name().compare("getAudioVolume") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        float nativeFuncResult = getVolume((EDataFlow)deviceType, (ERole)role);
+        result->Success(flutter::EncodableValue((double)nativeFuncResult));
+    }
+    else if (method_call.method_name().compare("setAudioVolume") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
+        setVolume((float)volumeLevel, (EDataFlow)deviceType, (ERole)role);
+        result->Success(flutter::EncodableValue((int)1));
+    }
+    else if (method_call.method_name().compare("switchDefaultDevice") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int deviceType = std::get<int>(args.at(flutter::EncodableValue("deviceType")));
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        bool console = std::get<bool>(args.at(flutter::EncodableValue("console")));
+        bool multimedia = std::get<bool>(args.at(flutter::EncodableValue("multimedia")));
+        bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
+        bool nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType, (ERole)role, console, multimedia, communications);
+        result->Success(flutter::EncodableValue(nativeFuncResult));
+    }
+    else if (method_call.method_name().compare("iconToBytes") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        std::string iconLocation = std::get<std::string>(args.at(flutter::EncodableValue("iconLocation")));
+        int iconID = std::get<int>(args.at(flutter::EncodableValue("iconID")));
+        std::wstring iconLocationW = Encoding::Utf8ToWide(iconLocation);
+        HICON icon = getIconFromFile((LPWSTR)iconLocationW.c_str(), iconID);
+
+        std::vector<CHAR> buff;
+        bool resultIcon = GetIconData(icon, 32, buff);
+        if (!resultIcon)
+        {
+            buff.clear();
+            resultIcon = GetIconData(icon, 24, buff);
+        }
+        std::vector<uint8_t> buff_uint8;
+        for (auto i : buff)
+        {
+            buff_uint8.push_back(i);
+        }
+        result->Success(flutter::EncodableValue(buff_uint8));
+    }
+    else if (method_call.method_name().compare("getWindowIcon") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int hWND = std::get<int>(args.at(flutter::EncodableValue("hWnd")));
+
+        LRESULT iconResult = SendMessage((HWND)((LONG_PTR)hWND), WM_GETICON, 2, 0); // ICON_SMALL2 - User Made Apps
+        if (iconResult == 0)
+            iconResult = GetClassLongPtr((HWND)((LONG_PTR)hWND), -14); // GCLP_HICON - Microsoft Win Apps
+        if (iconResult != 0)
+        {
+
+            HICON icon = (HICON)iconResult;
             std::vector<CHAR> buff;
             bool resultIcon = GetIconData(icon, 32, buff);
             if (!resultIcon)
             {
                 buff.clear();
                 resultIcon = GetIconData(icon, 24, buff);
-            }
-            std::vector<uint8_t> buff_uint8;
-            for (auto i : buff)
-            {
-                buff_uint8.push_back(i);
-            }
-            result->Success(flutter::EncodableValue(buff_uint8));
-        }
-        else if (method_call.method_name().compare("getWindowIcon") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int hWND = std::get<int>(args.at(flutter::EncodableValue("hWnd")));
-
-            LRESULT iconResult = SendMessage((HWND)((LONG_PTR)hWND), WM_GETICON, 2, 0); // ICON_SMALL2 - User Made Apps
-            if (iconResult == 0)
-                iconResult = GetClassLongPtr((HWND)((LONG_PTR)hWND), -14); // GCLP_HICON - Microsoft Win Apps
-            if (iconResult != 0)
-            {
-
-                HICON icon = (HICON)iconResult;
-                std::vector<CHAR> buff;
-                bool resultIcon = GetIconData(icon, 32, buff);
-                if (!resultIcon)
-                {
-                    buff.clear();
-                    resultIcon = GetIconData(icon, 24, buff);
-                }
-                if (resultIcon)
-                {
-                    std::vector<uint8_t> buff_uint8;
-                    for (auto i : buff)
-                    {
-                        buff_uint8.push_back(i);
-                    }
-                    result->Success(flutter::EncodableValue(buff_uint8));
-                }
-                else
-                {
-                    std::vector<uint8_t> iconBytes;
-                    iconBytes.push_back(204);
-                    iconBytes.push_back(204);
-                    iconBytes.push_back(204);
-                    result->Success(flutter::EncodableValue(iconBytes));
-                }
-            }
-            else
-            {
-
-                std::vector<uint8_t> iconBytes;
-                iconBytes.push_back(204);
-                iconBytes.push_back(204);
-                iconBytes.push_back(204);
-                result->Success(flutter::EncodableValue(iconBytes));
-            }
-        }
-        else if (method_call.method_name().compare("getIconPng") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int hIcon = std::get<int>(args.at(flutter::EncodableValue("hIcon")));
-            std::vector<CHAR> buff;
-            bool resultIcon = GetIconData((HICON)((LONG_PTR)hIcon), 32, buff);
-            if (!resultIcon)
-            {
-                buff.clear();
-                resultIcon = GetIconData((HICON)((LONG_PTR)hIcon), 24, buff);
             }
             if (resultIcon)
             {
@@ -663,40 +700,77 @@ namespace win32audio
                 result->Success(flutter::EncodableValue(iconBytes));
             }
         }
-        else if (method_call.method_name().compare("enumAudioMixer") == 0)
-        {
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role);
-            // loop through devices and add them to a map
-            flutter::EncodableMap map;
-            for (const auto &device : devices)
-            {
-                flutter::EncodableMap deviceMap;
-                deviceMap[flutter::EncodableValue("processId")] = flutter::EncodableValue(device.processId);
-                deviceMap[flutter::EncodableValue("processPath")] = flutter::EncodableValue(device.processPath);
-                deviceMap[flutter::EncodableValue("maxVolume")] = flutter::EncodableValue(device.maxVolume);
-                deviceMap[flutter::EncodableValue("peakVolume")] = flutter::EncodableValue(device.peakVolume);
-                map[flutter::EncodableValue(device.processId)] = flutter::EncodableValue(deviceMap);
-            }
-            result->Success(flutter::EncodableValue(map));
-        }
-        else if (method_call.method_name().compare("setAudioMixerVolume") == 0)
-        {
-
-            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
-            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
-            int processID = std::get<int>(args.at(flutter::EncodableValue("processID")));
-            double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
-            std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role, processID, (float)volumeLevel);
-            result->Success(flutter::EncodableValue(true));
-        }
-        // write method ListAudioDevices
-
         else
         {
-            result->NotImplemented();
+
+            std::vector<uint8_t> iconBytes;
+            iconBytes.push_back(204);
+            iconBytes.push_back(204);
+            iconBytes.push_back(204);
+            result->Success(flutter::EncodableValue(iconBytes));
         }
     }
+    else if (method_call.method_name().compare("getIconPng") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int hIcon = std::get<int>(args.at(flutter::EncodableValue("hIcon")));
+        std::vector<CHAR> buff;
+        bool resultIcon = GetIconData((HICON)((LONG_PTR)hIcon), 32, buff);
+        if (!resultIcon)
+        {
+            buff.clear();
+            resultIcon = GetIconData((HICON)((LONG_PTR)hIcon), 24, buff);
+        }
+        if (resultIcon)
+        {
+            std::vector<uint8_t> buff_uint8;
+            for (auto i : buff)
+            {
+                buff_uint8.push_back(i);
+            }
+            result->Success(flutter::EncodableValue(buff_uint8));
+        }
+        else
+        {
+            std::vector<uint8_t> iconBytes;
+            iconBytes.push_back(204);
+            iconBytes.push_back(204);
+            iconBytes.push_back(204);
+            result->Success(flutter::EncodableValue(iconBytes));
+        }
+    }
+    else if (method_call.method_name().compare("enumAudioMixer") == 0)
+    {
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role);
+        // loop through devices and add them to a map
+        flutter::EncodableMap map;
+        for (const auto &device : devices)
+        {
+            flutter::EncodableMap deviceMap;
+            deviceMap[flutter::EncodableValue("processId")] = flutter::EncodableValue(device.processId);
+            deviceMap[flutter::EncodableValue("processPath")] = flutter::EncodableValue(device.processPath);
+            deviceMap[flutter::EncodableValue("maxVolume")] = flutter::EncodableValue(device.maxVolume);
+            deviceMap[flutter::EncodableValue("peakVolume")] = flutter::EncodableValue(device.peakVolume);
+            map[flutter::EncodableValue(device.processId)] = flutter::EncodableValue(deviceMap);
+        }
+        result->Success(flutter::EncodableValue(map));
+    }
+    else if (method_call.method_name().compare("setAudioMixerVolume") == 0)
+    {
 
-} // namespace audio
+        const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+        int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+        int processID = std::get<int>(args.at(flutter::EncodableValue("processID")));
+        double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
+        std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role, processID, (float)volumeLevel);
+        result->Success(flutter::EncodableValue(true));
+    }
+    // write method ListAudioDevices
+
+    else
+    {
+        result->NotImplemented();
+    }
+}

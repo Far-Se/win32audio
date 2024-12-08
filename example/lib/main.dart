@@ -25,7 +25,7 @@ class _MyAppState extends State<MyApp> {
   final WinIcons winIcons = WinIcons();
 
   List<ProcessVolume> mixerList = <ProcessVolume>[];
-  bool _stateFetchAudioMixerPeak = false;
+  bool _stateFetchAudioMixerPeak = true;
 
   double __volume = 0.0;
   String fetchStatus = "";
@@ -45,6 +45,15 @@ class _MyAppState extends State<MyApp> {
         setState(() {});
       }
     });
+
+    Audio.initialize(onDevicesChanged: () {
+      print("Audio devices changed!");
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> fetchAudioDevices() async {
@@ -119,12 +128,12 @@ class _MyAppState extends State<MyApp> {
                                   child: Text(
                                     defaultDevice.name,
                                     textAlign: TextAlign.justify,
-                                    style: const TextStyle(color: Colors.white),
+                                    style: const TextStyle(color: Colors.black),
                                     strutStyle: const StrutStyle(forceStrutHeight: true),
                                   ),
                                 ),
                               ),
-                              const Icon(Icons.swap_vertical_circle_outlined, color: Colors.white),
+                              const Icon(Icons.swap_vertical_circle_outlined, color: Colors.black),
                             ],
                           ),
                           onPressed: () async {

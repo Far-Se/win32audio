@@ -84,6 +84,20 @@ enum AudioRole {
 const MethodChannel audioMethodChannel = MethodChannel("win32audio");
 
 class Audio {
+  static void Function()? _onDevicesChanged;
+
+  static Future<void> initialize({required void Function() onDevicesChanged}) async {
+    _onDevicesChanged = onDevicesChanged;
+
+    audioMethodChannel.setMethodCallHandler((MethodCall call) async {
+      if (call.method == 'onDevicesChanged' && _onDevicesChanged != null) {
+        _onDevicesChanged!();
+      }
+    });
+
+    // await audioMethodChannel.invokeMethod('initialize');
+  }
+
   /// Returns a Future list of audio devices of a specified type.
   /// The type is specified by the [AudioDeviceType] enum.
   ///

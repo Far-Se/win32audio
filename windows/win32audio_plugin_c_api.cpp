@@ -5,8 +5,9 @@
 #include "win32audio_plugin.h"
 
 void Win32audioPluginCApiRegisterWithRegistrar(
-    FlutterDesktopPluginRegistrarRef registrar) {
-  win32audio::Win32audioPlugin::RegisterWithRegistrar(
-      flutter::PluginRegistrarManager::GetInstance()
-          ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
+    FlutterDesktopPluginRegistrarRef registrar)
+{
+    Win32audioPlugin::RegisterWithRegistrar(
+        flutter::PluginRegistrarManager::GetInstance()
+            ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
 }
