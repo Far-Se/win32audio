@@ -90,6 +90,40 @@ enum AudioDeviceType {
   input,
 }
 ```
+# Listen to Changes
+1. Listen to audio device changes with `Audio.setupChangeListener` To setup, on `main()`
+2. `Audio.addChangeListener` add it to `initState()` or whereever you want
+3. `Audio.removeChangeListener` to remove a listener.
+4. All callback functions: 
+    `OnDeviceStateChanged`
+    `OnDeviceAdded`
+    `OnDeviceRemoved`
+    `OnDefaultDeviceChanged`
+    `OnPropertyValueChanged`
+
+```dart
+void main() {
+    
+  WidgetsFlutterBinding.ensureInitialized();
+  await Audio.setupChangeListener();
+}
+[...]
+initState() {
+    Audio.addChangeListener((String type, String id) async {
+      print(type);
+      print(id);
+    });
+}
+```
+
+### Warning
+If you use this, you will receive this message:
+
+```The 'win32audio' channel sent a message from native to Flutter on a non-platform thread. Platform channel messages must be sent on the platform thread. Failure to do so may result in data loss or crashes, and must be fixed in the plugin or application code creating that channel.```
+
+I'ts nothing to be scared of, the message comes from a separate thread.
+
+
 
 # Extra Function
 

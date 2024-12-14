@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:win32audio/win32audio.dart';
 import 'widgets/animated_progress_bar.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Audio.setupChangeListener();
   runApp(const MyApp());
 }
 
@@ -32,6 +34,10 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    Audio.addChangeListener((String type, String id) async {
+      print(type);
+      print(id);
+    });
     fetchAudioDevices();
     Timer.periodic(const Duration(milliseconds: 150), (Timer timer) async {
       if (_stateFetchAudioMixerPeak) {
@@ -44,10 +50,6 @@ class _MyAppState extends State<MyApp> {
         }
         setState(() {});
       }
-    });
-
-    Audio.initialize(onDevicesChanged: () {
-      print("Audio devices changed!");
     });
   }
 
@@ -233,7 +235,7 @@ class _MyAppState extends State<MyApp> {
             //? AUDIO MIXER
             SizedBox(
               child: CheckboxListTile(
-                title: const Text("Countinously Fetch Audio Mixer"),
+                title: const Text("Countinously Fetch The Audio Mixer"),
                 value: _stateFetchAudioMixerPeak,
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (bool? e) {

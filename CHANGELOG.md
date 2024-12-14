@@ -1,3 +1,16 @@
+## 1.4.0
+* Fixed some crash bugs
+* Now you can listen to audio device changes with :
+* `Audio.setupChangeListener` To setup, on main()
+* `Audio.addChangeListener` add it to initState(); or whereever you want
+* `Audio.removeChangeListener` to remove a listener.
+* All callback functions: 
+    `OnDeviceStateChanged`
+    `OnDeviceAdded`
+    `OnDeviceRemoved`
+    `OnDefaultDeviceChanged`
+    `OnPropertyValueChanged`
+
 ## 1.3.1
 * Fixed an issue with missing icon id error
 

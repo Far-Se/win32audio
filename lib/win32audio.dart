@@ -84,18 +84,30 @@ enum AudioRole {
 const MethodChannel audioMethodChannel = MethodChannel("win32audio");
 
 class Audio {
-  static void Function()? _onDevicesChanged;
+  static bool listenerActive = false;
 
-  static Future<void> initialize({required void Function() onDevicesChanged}) async {
-    _onDevicesChanged = onDevicesChanged;
+  static final List<void Function(String type, String id)> _changeListeners = <void Function(String type, String id)>[];
 
-    audioMethodChannel.setMethodCallHandler((MethodCall call) async {
-      if (call.method == 'onDevicesChanged' && _onDevicesChanged != null) {
-        _onDevicesChanged!();
-      }
-    });
+  static Future<void> setupChangeListener() async {
+    if (!listenerActive) {
+      listenerActive = true;
+      await audioMethodChannel.invokeMethod('initAudioListener');
+      audioMethodChannel.setMethodCallHandler((MethodCall call) async {
+        if (call.method == 'onAudioDeviceChange') {
+          for (void Function(String type, String id) listener in _changeListeners) {
+            listener(call.arguments["name"], call.arguments["id"]);
+          }
+        }
+      });
+    }
+  }
 
-    // await audioMethodChannel.invokeMethod('initialize');
+  static void addChangeListener(void Function(String type, String id) callback) {
+    _changeListeners.add(callback);
+  }
+
+  static void removeChangeListener(void Function(String type, String id) callback) {
+    _changeListeners.remove(callback);
   }
 
   /// Returns a Future list of audio devices of a specified type.
