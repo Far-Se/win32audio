@@ -188,6 +188,13 @@ class Audio {
     return result as int;
   }
 
+  static Future<int> setAudioDeviceVolume(String deviceID, double volume) async {
+    if (volume > 1) volume = (volume / 100).toDouble();
+    final Map<String, dynamic> arguments = <String, dynamic>{"deviceID": deviceID, "volumeLevel": volume};
+    final int? result = await audioMethodChannel.invokeMethod<int>("setAudioDeviceVolume", arguments);
+    return result as int;
+  }
+
   /// This function switches the audio device to the specified type. The type is specified by the [AudioDeviceType] enum.
   static Future<bool> switchDefaultDevice(AudioDeviceType audioDeviceType,
       {AudioRole audioRole = AudioRole.multimedia, bool console = false, bool multimedia = true, bool communications = false}) async {
