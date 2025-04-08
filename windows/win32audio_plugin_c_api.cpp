@@ -16,6 +16,7 @@
 #include <vector>
 #include "include/Policyconfig.h"
 #include "include/encoding.h"
+#include <endpointvolume.h>
 // #include "hicon_to_bytes.cpp"
 
 #pragma warning(push)
@@ -34,6 +35,7 @@ using namespace std;
 
 const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
 const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
+const IID IID_IAudioEndpointVolume = __uuidof(IAudioEndpointVolume);
 
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
@@ -418,6 +420,56 @@ static int switchDefaultDevice(EDataFlow deviceType, ERole role, bool console, b
         return 0; // Failed to set default device
     }
 }
+bool setAudioDeviceVolume(float volumeLevel, LPWSTR devID)
+{
+    HRESULT hr = CoInitialize(NULL);  // Initialize COM library
+    if (FAILED(hr)) {
+        return false;  // COM initialization failed
+    }
+
+    // Create a device enumerator to get access to audio devices
+    IMMDeviceEnumerator* pEnumerator = nullptr;
+    hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pEnumerator));
+    if (FAILED(hr)) {
+        CoUninitialize();
+        return false;  // Failed to create device enumerator
+    }
+
+    IMMDevice* pDevice = nullptr;
+    hr = pEnumerator->GetDevice(devID, &pDevice);
+    if (FAILED(hr)) {
+        pEnumerator->Release();
+        CoUninitialize();
+        return false;  // Failed to get the device by devID
+    }
+
+    IAudioEndpointVolume* pAudioVolume = nullptr;
+    hr = pDevice->Activate(IID_IAudioEndpointVolume, CLSCTX_ALL, NULL, (void**)&pAudioVolume);
+    if (FAILED(hr)) {
+        pDevice->Release();
+        pEnumerator->Release();
+        CoUninitialize();
+        return false;  // Failed to activate the audio endpoint volume
+    }
+
+    // Set the volume
+    hr = pAudioVolume->SetMasterVolumeLevelScalar(volumeLevel, NULL);
+    if (FAILED(hr)) {
+        pAudioVolume->Release();
+        pDevice->Release();
+        pEnumerator->Release();
+        CoUninitialize();
+        return false;  // Failed to set the volume
+    }
+
+    // Cleanup
+    pAudioVolume->Release();
+    pDevice->Release();
+    pEnumerator->Release();
+    CoUninitialize();
+
+    return true;
+}
 
 /// Audio Session
 
@@ -667,6 +719,15 @@ private:
             bool communications = std::get<bool>(args.at(flutter::EncodableValue("communications")));
             bool nativeFuncResult = switchDefaultDevice((EDataFlow)deviceType, (ERole)role, console, multimedia, communications);
             result->Success(flutter::EncodableValue(nativeFuncResult));
+        }
+        else if (method_call.method_name().compare("setAudioDeviceVolume") == 0)
+        {
+            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+            std::string deviceID = std::get<std::string>(args.at(flutter::EncodableValue("deviceID")));
+            double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
+            std::wstring deviceIDW = Encoding::Utf8ToWide(deviceID);
+            setAudioDeviceVolume((float)volumeLevel, (LPWSTR)deviceIDW.c_str());
+            result->Success(flutter::EncodableValue((int)1));;
         }
         else if (method_call.method_name().compare("iconToBytes") == 0)
         {
