@@ -234,6 +234,16 @@ class Audio {
     final bool? result = await audioMethodChannel.invokeMethod<bool>("setAudioMixerVolume", arguments);
     return result as bool;
   }
+
+  /// This function sets the audio mixer volume for the specified process path. The volume level is a number between 0 and 1, with 1 being the maximum volume.
+  /// The process path is the process path of the process that is using the audio mixer.
+  /// The process path can be obtained by calling the enumAudioMixer function.
+  static Future<bool> setAudioMixerVolumeByPath(String processPath, double volume, {AudioRole audioRole = AudioRole.multimedia}) async {
+    if (volume > 1) volume = (volume / 100).toDouble();
+    final Map<String, dynamic> arguments = <String, dynamic>{"processPath": processPath, "volumeLevel": volume, "role": audioRole.index};
+    final bool? result = await audioMethodChannel.invokeMethod<bool>("setAudioMixerVolumeByPath", arguments);
+    return result as bool;
+  }
 }
 
 /// This function converts a native icon location to bytes.

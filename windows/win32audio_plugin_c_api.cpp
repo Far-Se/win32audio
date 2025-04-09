@@ -604,6 +604,45 @@ std::vector<ProcessVolume> GetProcessVolumes(ERole eRole, int pID = 0, float vol
     return std::vector<ProcessVolume>{};
 }
 
+bool SetProcessVolumeByPath(ERole eRole, std::string path, float volume)
+{
+    HRESULT hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
+    if (hr)
+    {
+        IAudioSessionEnumerator *enumerator = GetAudioSessionEnumerator(eRole);
+        int sessionCount;
+        enumerator->GetCount(&sessionCount);
+        for (int index = 0; index < sessionCount; index++)
+        {
+            IAudioSessionControl *session = nullptr;
+            IAudioSessionControl2 *session2 = nullptr;
+            enumerator->GetSession(index, &session);
+            session->QueryInterface(__uuidof(IAudioSessionControl2), (void **)&session2);
+
+            DWORD id = 0;
+            session2->GetProcessId(&id);
+            std::string processPath = "";
+            if ((int)id != 0)
+                processPath = GetProcessNameFromPid(id);
+            else
+            {
+                session2->Release();
+                session->Release();
+                continue;
+            }
+            if (path == processPath)
+            {
+                getSetProcessMasterVolume(session, volume);
+                session2->Release();
+                session->Release();
+                break;
+            }
+        }
+        enumerator->Release();
+    }
+    return true;
+}
+
 // static
 class Win32audioPlugin : public flutter::Plugin, public IMMNotificationClient
 {
@@ -854,6 +893,15 @@ private:
             double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
             std::vector<ProcessVolume> devices = GetProcessVolumes((ERole)role, processID, (float)volumeLevel);
             result->Success(flutter::EncodableValue(true));
+        }
+        else if (method_call.method_name().compare("setAudioMixerVolumeByPath") == 0)
+        {
+            const flutter::EncodableMap &args = std::get<flutter::EncodableMap>(*method_call.arguments());
+            int role = std::get<int>(args.at(flutter::EncodableValue("role")));
+            std::string processPath = std::get<std::string>(args.at(flutter::EncodableValue("processPath")));
+            double volumeLevel = std::get<double>(args.at(flutter::EncodableValue("volumeLevel")));
+            bool nativeFuncResult = SetProcessVolumeByPath((ERole)role, processPath, (float)volumeLevel);
+            result->Success(flutter::EncodableValue(nativeFuncResult));
         }
         // write method ListAudioDevices
 
