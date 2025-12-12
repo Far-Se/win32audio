@@ -14,10 +14,11 @@ set(PLUGIN_NAME "win32audio_plugin")
 
 # Define the plugin library target. Its name must not be changed (see comment
 # on PLUGIN_NAME above).
+# "include/win32audio/win32audio_plugin_c_api.h"
 add_library(${PLUGIN_NAME} SHARED
-  "include/win32audio/win32audio_plugin_c_api.h"
   "win32audio_plugin_c_api.cpp"
-  ${PLUGIN_SOURCES}
+  "audio_manager.cpp"
+  "icon_manager.cpp"
 )
 
 # Apply a standard set of build settings that are configured in the
@@ -36,7 +37,7 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 # dependencies here.
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin)
+target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin propsys)
 
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an

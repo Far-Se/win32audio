@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:win32audio/win32audio.dart';
 import 'widgets/animated_progress_bar.dart';
+import 'widgets/win_icon_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,13 +12,11 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
-
-Map<String, Uint8List?> _audioIcons = <String, Uint8List?>{};
 
 class _MyAppState extends State<MyApp> {
   AudioDevice defaultDevice = AudioDevice();
@@ -31,24 +29,24 @@ class _MyAppState extends State<MyApp> {
 
   double __volume = 0.0;
   String fetchStatus = "";
+  List<String> eventLog = <String>[];
+
   @override
   void initState() {
     super.initState();
     Audio.addChangeListener((String type, String id) async {
-      print(type);
-      print(id);
+      if (mounted) {
+        setState(() {
+          eventLog.insert(0, "$type: $id");
+          if (eventLog.length > 50) eventLog.removeLast();
+        });
+      }
     });
     fetchAudioDevices();
     Timer.periodic(const Duration(milliseconds: 150), (Timer timer) async {
       if (_stateFetchAudioMixerPeak) {
         mixerList = await Audio.enumAudioMixer() ?? <ProcessVolume>[];
-
-        for (ProcessVolume mixer in mixerList) {
-          if (_audioIcons[mixer.processPath] == null) {
-            _audioIcons[mixer.processPath] = await WinIcons().extractFileIcon(mixer.processPath);
-          }
-        }
-        setState(() {});
+        if (mounted) setState(() {});
       }
     });
   }
@@ -64,23 +62,78 @@ class _MyAppState extends State<MyApp> {
     __volume = await Audio.getVolume(audioDeviceType);
     defaultDevice = (await Audio.getDefaultDevice(audioDeviceType))!;
 
-    _audioIcons = <String, Uint8List>{};
-    for (AudioDevice audioDevice in audioDevices) {
-      if (_audioIcons[audioDevice.id] == null) {
-        _audioIcons[audioDevice.id] = await WinIcons().extractFileIcon(audioDevice.iconPath, iconID: audioDevice.iconID);
-      }
-    }
-
     mixerList = await Audio.enumAudioMixer() ?? <ProcessVolume>[];
-    for (ProcessVolume mixer in mixerList) {
-      if (_audioIcons[mixer.processPath] == null) {
-        _audioIcons[mixer.processPath] = await WinIcons().extractFileIcon(mixer.processPath);
+
+    if (mounted) {
+      setState(() {
+        fetchStatus = "Get";
+      });
+    }
+  }
+
+  Future<void> _showSampleRateDialog(BuildContext context, AudioDevice device) async {
+    // Get current sample rate
+    int currentRate = await Audio.getSampleRate(device.id);
+
+    if (!context.mounted) return;
+
+    final int? selectedRate = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            int? tempSelectedRate = currentRate;
+
+            return AlertDialog(
+              title: Text('Sample Rate - ${device.name}'),
+              content: RadioGroup<int>(
+                groupValue: tempSelectedRate,
+                onChanged: (int? value) {
+                  if (value != null) {
+                    setState(() => tempSelectedRate = value);
+                    Navigator.of(context).pop(value);
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Current: ${currentRate > 0 ? "$currentRate Hz" : "Unknown"}'),
+                    const SizedBox(height: 20),
+                    const Text('Select new sample rate:'),
+                    const SizedBox(height: 10),
+                    ...<int>[44100, 48000, 96000, 192000].map((int rate) {
+                      return ListTile(title: Text('$rate Hz'), leading: Radio<int>(value: rate));
+                    }),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (selectedRate != null && context.mounted) {
+      bool success = await Audio.setSampleRate(device.id, selectedRate);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success ? 'Sample rate changed to $selectedRate Hz' : 'Failed to change sample rate. Try running as administrator.',
+            ),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
       }
     }
-
-    setState(() {
-      fetchStatus = "Get";
-    });
   }
 
   @override
@@ -91,8 +144,7 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: double.infinity),
-            child: //write a widget that expands to the whole screen and has three elements, one on the left and two on the right.
-                Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 Container(
@@ -202,28 +254,36 @@ class _MyAppState extends State<MyApp> {
             ),
             //? LIST AUDIO DEVICES
             Flexible(
-                flex: 3,
+                flex: 2,
                 fit: FlexFit.loose,
                 child: ListView.builder(
                     itemCount: audioDevices.length,
                     itemBuilder: (BuildContext context, int index) {
                       return ListTile(
-                        leading: (_audioIcons.containsKey(audioDevices[index].id))
-                            ? Image.memory(
-                                _audioIcons[audioDevices[index].id] ?? Uint8List(0),
-                                width: 32,
-                                height: 32,
-                                gaplessPlayback: true,
-                              )
-                            : const Icon(Icons.spoke_outlined),
+                        leading: WinIconWidget(
+                          path: audioDevices[index].iconPath,
+                          iconID: audioDevices[index].iconID,
+                        ),
                         title: Text(audioDevices[index].name),
-                        trailing: IconButton(
-                          icon: Icon((audioDevices[index].isActive == true ? Icons.check_box_outlined : Icons.check_box_outline_blank)),
-                          onPressed: () async {
-                            await Audio.setDefaultDevice(audioDevices[index].id);
-                            fetchAudioDevices();
-                            setState(() {});
-                          },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.graphic_eq),
+                              tooltip: 'Sample Rate',
+                              onPressed: () async {
+                                await _showSampleRateDialog(context, audioDevices[index]);
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon((audioDevices[index].isActive == true ? Icons.check_box_outlined : Icons.check_box_outline_blank)),
+                              onPressed: () async {
+                                await Audio.setDefaultDevice(audioDevices[index].id);
+                                fetchAudioDevices();
+                                setState(() {});
+                              },
+                            ),
+                          ],
                         ),
                       );
                     })),
@@ -247,7 +307,7 @@ class _MyAppState extends State<MyApp> {
             ),
             //? LIST AUDIO MIXER
             Flexible(
-              flex: 3,
+              flex: 2,
               child: ListView.builder(
                   itemCount: mixerList.length,
                   itemBuilder: (BuildContext context, int index) {
@@ -264,15 +324,16 @@ class _MyAppState extends State<MyApp> {
                           children: <Widget>[
                             Flexible(
                                 child: ListTile(
-                                    leading: (_audioIcons.containsKey(mixerList[index].processPath))
-                                        ? Image.memory(
-                                            _audioIcons[mixerList[index].processPath] ?? Uint8List(0),
-                                            width: 32,
-                                            height: 32,
-                                            gaplessPlayback: true,
-                                          )
-                                        : const Icon(Icons.spoke_outlined),
-                                    title: Text(mixerList[index].processPath))),
+                                    leading: WinIconWidget(
+                                      path: mixerList[index].processPath,
+                                      iconID: 0, // Usually 0 for exe icons
+                                    ),
+                                    title: Tooltip(
+                                      message: mixerList[index].processPath,
+                                      child: Text(
+                                        mixerList[index].processPath.split('/').last.split('\\').last,
+                                      ),
+                                    ))),
                             Flexible(
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 20),
@@ -313,6 +374,30 @@ class _MyAppState extends State<MyApp> {
                       ],
                     );
                   }),
+            ),
+            const Divider(
+              thickness: 5,
+              height: 10,
+              color: Color.fromARGB(12, 0, 0, 0),
+            ),
+            const Center(child: Text("Event Log")),
+            //? EVENT LOG
+            Flexible(
+              flex: 2,
+              child: Container(
+                color: Colors.grey[200],
+                child: ListView.builder(
+                    itemCount: eventLog.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                        child: Text(
+                          eventLog[index],
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      );
+                    }),
+              ),
             )
           ],
         ),

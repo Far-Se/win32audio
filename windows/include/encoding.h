@@ -7,7 +7,7 @@ namespace Encoding {
      * @param wstr 
      * @return std::string 
      */
-    std::string WideToUtf8(const std::wstring& wstr)
+    inline std::string WideToUtf8(const std::wstring& wstr)
     {
         int count = WideCharToMultiByte(
             CP_UTF8, 
@@ -37,7 +37,7 @@ namespace Encoding {
      * @param str 
      * @return std::wstring 
      */
-    std::wstring Utf8ToWide(const std::string& str)
+    inline std::wstring Utf8ToWide(const std::string& str)
     {
         int count = MultiByteToWideChar(
             CP_UTF8, 
@@ -63,7 +63,7 @@ namespace Encoding {
      * @param wstr 
      * @return std::string 
      */
-    std::string WideToAnsi(const std::wstring& wstr)
+    inline std::string WideToAnsi(const std::wstring& wstr)
     {
         int count = WideCharToMultiByte(
             CP_ACP, 
@@ -92,7 +92,7 @@ namespace Encoding {
      * @param str 
      * @return std::wstring 
      */
-    std::wstring AnsiToWide(const std::string& str)
+    inline std::wstring AnsiToWide(const std::string& str)
     {
         int count = MultiByteToWideChar(
             CP_ACP,

@@ -10,7 +10,7 @@ String _defaultFormatValue(double value, int? fixed) {
 
 class FAProgressBar extends StatefulWidget {
   FAProgressBar({
-    Key? key,
+    super.key,
     this.currentValue = 0,
     this.maxValue = 100,
     this.size = 30,
@@ -27,8 +27,7 @@ class FAProgressBar extends StatefulWidget {
     this.formatValueFixed,
     this.displayText,
     this.displayTextStyle = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 12),
-  })  : _borderRadius = borderRadius ?? BorderRadius.circular(8),
-        super(key: key);
+  }) : _borderRadius = borderRadius ?? BorderRadius.circular(8);
   final double currentValue;
   final double maxValue;
   final double size;
@@ -103,10 +102,10 @@ class _FAProgressBarState extends State<FAProgressBar> with SingleTickerProvider
 
 class AnimatedProgressBar extends AnimatedWidget {
   const AnimatedProgressBar({
-    Key? key,
+    super.key,
     required Animation<double> animation,
     required this.widget,
-  }) : super(key: key, listenable: animation);
+  }) : super(listenable: animation);
 
   final FAProgressBar widget;
 

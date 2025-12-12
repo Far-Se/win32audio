@@ -1,3 +1,8 @@
+## 1.5.0
+* Added setAudioMixerVolumeByPath and setAudioDeviceVolume functions by @blitzdose
+* Fixed various memory leaks detected by AI.
+* Added setSampleRate and getSampleRate.
+
 ## 1.4.0
 * Fixed some crash bugs
 * Now you can listen to audio device changes with :
