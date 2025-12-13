@@ -32,3 +32,5 @@ build/
 
 .history/
 .vscode/
+.undo-redo-ned.json
+.ned-agent-history.json
